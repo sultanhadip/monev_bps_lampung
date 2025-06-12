@@ -59,17 +59,87 @@
         <div class="col-lg-12">
           <div class="card">
             <div class="card-body">
-              <h5 class="card-title">Monitoring Kegiatan</h5>
+              <!-- Card Title and Add Button in the same row -->
+              <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="card-title mb-0">Monitoring Kegiatan</h5>
+                <div>
+                  @canAny(['isAdmin','isAdminProv'])
+                  <button class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#addModal">
+                    <i class="bi bi-plus me-1"></i> Tambah
+                  </button>
+                  @endcanAny
+                </div>
+              </div>
 
-              <!-- Search and Add Button -->
-              <div class="d-flex justify-content-between mb-3">
-                <!-- Search Bar -->
-                <input type="text" class="form-control w-25" id="searchInput" placeholder="Cari Tim Kerja">
+              <!-- Alert messages -->
+              @if(session('success'))
+              <div class="alert alert-success alert-dismissible fade show" role="alert" style="font-size: 0.9rem;">
+                {{ session('success') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+              @endif
 
-                <!-- Add Button -->
-                <button class="btn btn-primary d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#addModal">
-                  <i class="bi bi-plus me-1 text-white"></i> Tambah
-                </button>
+              @if(session('duplicate_errors'))
+              <div class="alert alert-warning alert-dismissible fade show" role="alert" style="white-space: pre-line; line-height: 1; font-size: 0.9rem;">
+                <strong class="mb-0 d-block" style="margin-bottom: 0;">Kegiatan sudah pernah ditambahkan</strong>
+                <span style="display: block; margin-top: 0.1rem;">{!! nl2br(e(session('duplicate_errors'))) !!}</span>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+              @endif
+
+              @if(session('error'))
+              <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                {{ session('error') }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+              </div>
+              @endif
+
+              <!-- Baris 2: Form Filter (mengisi full width) -->
+              <div id="filterForm" class="row g-2 align-items-center mb-3">
+
+                <!-- Search input: 6 kolom -->
+                <div class="col-md-6">
+                  <input
+                    id="searchInput"
+                    type="text"
+                    name="search"
+                    value="{{ request('search') }}"
+                    class="form-control"
+                    placeholder="Masukkan kata kunci pencarian" />
+                </div>
+
+                <!-- Filter Bulan: 3 kolom -->
+                <div class="col-md-3">
+                  <select
+                    id="filter_bulan"
+                    name="filter_bulan"
+                    class="form-select">
+                    <option value="">Semua Bulan</option>
+                    @foreach(range(1,12) as $m)
+                    <option value="{{ $m }}"
+                      {{ (int)request('filter_bulan') === $m ? 'selected' : '' }}>
+                      {{ \Carbon\Carbon::create()->month($m)->format('F') }}
+                    </option>
+                    @endforeach
+                  </select>
+                </div>
+
+                <!-- Filter Tahun: 3 kolom -->
+                <div class="col-md-3">
+                  <select
+                    id="filter_tahun"
+                    name="filter_tahun"
+                    class="form-select">
+                    <option value="">Semua Tahun</option>
+                    @foreach($years as $yr)
+                    <option value="{{ $yr }}"
+                      {{ request('filter_tahun') == $yr ? 'selected' : '' }}>
+                      {{ $yr }}
+                    </option>
+                    @endforeach
+                  </select>
+                </div>
+
               </div>
 
               <!-- Table with hoverable rows and horizontal scroll -->
@@ -93,142 +163,7 @@
                     </tr>
                   </thead>
                   <tbody>
-                    @foreach ($monitoringKegiatan as $index => $item)
-                    <tr>
-                      <td scope="row">{{ $index + 1 }}</td>
-                      <td>{{ $item->timkerja->nama_tim ?? 'N/A' }}</td> <!-- Nama Tim Kerja -->
-                      <td>
-                        <a href="{{ route('detail-monitoring-kegiatan', ['id' => $item->id]) }}">
-                          {{ $item->datakegiatan->nama_kegiatan }}
-                        </a>
-                      </td>
-                      <td>{{ $item->periode_kegiatan ?? '-' }}</td> <!-- Menampilkan Periode -->
-                      <td>{{ $item->target ?? '0' }}</td>
-                      <td>{{ $item->realisasi ?? '0' }}</td>
-                      <td>{{ $item->persentase }}</td>
-                      <td>{{ $item->waktu_kegiatan ?? '-' }}</td>
-                      <td>
-                        @if ($item->status === 'SELESAI')
-                        <span class="badge bg-success text-white">{{ $item->status }}</span>
-                        @elseif ($item->status === 'BELUM DIMULAI')
-                        <span class="badge bg-danger text-white">{{ $item->status }}</span>
-                        @elseif ($item->status === 'ON PROGRESS')
-                        <span class="badge bg-warning text-white">{{ $item->status }}</span>
-                        @else
-                        <span class="badge bg-secondary text-white">{{ $item->status }}</span>
-                        @endif
-                      </td>
-                      @if ($canAccessVerifikasi)
-                      <td>
-                        <!-- Container for the buttons -->
-                        <div class="d-flex">
-                          <!-- Edit Button -->
-                          <button
-                            class="btn btn-sm btn-icon btn-white text-primary border-0"
-                            data-bs-toggle="modal"
-                            data-bs-target="#editModal{{ $item->id }}">
-                            <i class="bi bi-pencil-square fs-6"></i>
-                          </button>
-
-                          <!-- Delete Button -->
-                          <form action="{{ route('monitoringkegiatan.destroy', $item->id) }}" method="POST" style="display:inline;">
-                            @csrf
-                            @method('DELETE')
-                            <button
-                              type="submit"
-                              class="btn btn-sm btn-icon btn-white text-danger border-0">
-                              <i class="bi bi-trash fs-6"></i>
-                            </button>
-                          </form>
-                        </div>
-                      </td>
-                      @endif
-                    </tr>
-
-                    <!-- Edit Modal -->
-                    <div class="modal fade" id="editModal{{ $item->id }}" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
-                      <div class="modal-dialog modal-dialog-centered"> <!-- Modal Centered untuk penempatan yang lebih rapi -->
-                        <div class="modal-content">
-                          <form action="{{ route('monitoringkegiatan.update', $item->id) }}" method="POST">
-                            @csrf
-                            @method('PUT') <!-- Pastikan menggunakan method PUT -->
-
-                            <div class="modal-header">
-                              <h5 class="modal-title" id="editModalLabel">Edit Kegiatan Monitoring</h5>
-                              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                            </div>
-
-                            <div class="modal-body">
-                              <!-- Kode Tim -->
-                              <div class="mb-3">
-                                <label for="kode_tim_{{ $item->id }}" class="form-label">Tim Kerja</label>
-                                <select class="form-select" id="kode_tim_{{ $item->id }}" name="kode_tim" required>
-                                  <option value="" disabled>Pilih Tim Kerja</option>
-                                  @foreach($timkerja as $tim)
-                                  <option value="{{ $tim->id }}" {{ $item->kode_tim == $tim->id ? 'selected' : '' }}>
-                                    {{ $tim->nama_tim }}
-                                  </option>
-                                  @endforeach
-                                </select>
-                              </div>
-
-                              <!-- Kode Kegiatan -->
-                              <div class="mb-3">
-                                <label for="kode_kegiatan_{{ $item->id }}" class="form-label">Nama Kegiatan</label>
-                                <select class="form-select" id="kode_kegiatan_{{ $item->id }}" name="kode_kegiatan" required>
-                                  <option value="" disabled>Pilih Kegiatan</option>
-                                  @foreach($datakegiatan as $kegiatan)
-                                  <option value="{{ $kegiatan->id }}" {{ $item->kode_kegiatan == $kegiatan->id ? 'selected' : '' }}>
-                                    {{ $kegiatan->nama_kegiatan }}
-                                  </option>
-                                  @endforeach
-                                </select>
-                              </div>
-
-                              <!-- Tahun Kegiatan -->
-                              <div class="mb-3">
-                                <label for="tahun_kegiatan_{{ $item->id }}" class="form-label">Tahun Kegiatan</label>
-                                <input type="number" class="form-control" id="tahun_kegiatan_{{ $item->id }}" name="tahun_kegiatan" value="{{ old('tahun_kegiatan', $item->tahun_kegiatan) }}" required>
-                              </div>
-
-                              <!-- Waktu Mulai -->
-                              <div class="mb-3">
-                                <label for="waktu_mulai_{{ $item->id }}" class="form-label">Waktu Mulai</label>
-                                <input type="date" class="form-control" id="waktu_mulai_{{ $item->id }}" name="waktu_mulai" value="{{ old('waktu_mulai', $item->waktu_mulai) }}" required>
-                              </div>
-
-                              <!-- Waktu Selesai -->
-                              <div class="mb-3">
-                                <label for="waktu_selesai_{{ $item->id }}" class="form-label">Waktu Selesai</label>
-                                <input type="date" class="form-control" id="waktu_selesai_{{ $item->id }}" name="waktu_selesai" value="{{ old('waktu_selesai', $item->waktu_selesai) }}" required>
-                              </div>
-
-                              <!-- Satuan Kerja & Target Sampel -->
-                              <div class="mb-3">
-                                <label class="form-label">Satuan Kerja & Target Sampel</label>
-                                @foreach ($satuankerja as $satker)
-                                <div class="d-flex mb-2">
-                                  <label class="me-3">{{ $satker->nama_satuan_kerja }}</label>
-                                  <input type="number" class="form-control" name="target_sampel[{{ $satker->id }}]"
-                                    value="{{ old('target_sampel.' . $satker->id, $item->targetRealisasiSatker->where('kode_satuan_kerja', $satker->id)->first()->target_satker ?? 0) }}"
-                                    placeholder="Target Sampel" required style="width: 100%;">
-                                </div>
-                                @endforeach
-                              </div>
-                            </div>
-
-                            <div class="modal-footer">
-                              <button type="button" class="btn text-white" style="background-color: rgb(250, 82, 82);" data-bs-dismiss="modal">Batal</button>
-                              <button type="submit" class="btn btn-primary text-white">Simpan</button>
-                            </div>
-                          </form>
-
-                        </div>
-                      </div>
-                    </div>
-                    <!-- End Edit Modal -->
-
-                    @endforeach
+                    @include('monitoringkegiatan.table', ['monitoringKegiatan' => $monitoringKegiatan, 'canAccessVerifikasi' => $canAccessVerifikasi])
                   </tbody>
                 </table>
               </div>
@@ -238,7 +173,9 @@
               <div class="d-flex justify-content-between align-items-center">
                 <!-- Showing Text -->
                 <div class="me-3">
-                  <span>Showing {{ $monitoringKegiatan->firstItem() }}-{{ $monitoringKegiatan->lastItem() }} of {{ $monitoringKegiatan->total() }} records</span>
+                  <span id="showingText">
+                    Showing {{ $monitoringKegiatan->firstItem() }}-{{ $monitoringKegiatan->lastItem() }} of {{ $monitoringKegiatan->total() }} records
+                  </span>
                 </div>
 
                 <!-- Records Per Page Dropdown and Pagination at the right -->
@@ -246,31 +183,17 @@
                   <!-- Records per page -->
                   <div class="me-3 d-flex align-items-center">
                     <span class="me-2">Records per page</span>
-                    <form action="{{ route('monitoring-kegiatan') }}" method="GET" class="d-flex">
-                      <select name="per_page" class="form-select w-auto" onchange="this.form.submit()">
-                        <option value="10" {{ request('per_page', 10) == 10 ? 'selected' : '' }}>10</option>
-                        <option value="15" {{ request('per_page', 10) == 15 ? 'selected' : '' }}>15</option>
-                        <option value="20" {{ request('per_page', 10) == 20 ? 'selected' : '' }}>20</option>
-                      </select>
-                    </form>
+                    <select id="per_page" class="form-select w-auto">
+                      <option value="10" {{ request('per_page', 10) == 10 ? 'selected' : '' }}>10</option>
+                      <option value="15" {{ request('per_page', 10) == 15 ? 'selected' : '' }}>15</option>
+                      <option value="20" {{ request('per_page', 10) == 20 ? 'selected' : '' }}>20</option>
+                    </select>
                   </div>
 
-                  <!-- Pagination -->
-                  <nav>
-                    <ul class="pagination m-0">
-                      <li class="page-item {{ $monitoringKegiatan->onFirstPage() ? 'disabled' : '' }}">
-                        <a class="page-link" href="{{ $monitoringKegiatan->previousPageUrl() }}">Previous</a>
-                      </li>
-                      @foreach ($monitoringKegiatan->getUrlRange(1, $monitoringKegiatan->lastPage()) as $page => $url)
-                      <li class="page-item {{ $monitoringKegiatan->currentPage() == $page ? 'active' : '' }}">
-                        <a class="page-link" href="{{ $url }}">{{ $page }}</a>
-                      </li>
-                      @endforeach
-                      <li class="page-item {{ !$monitoringKegiatan->hasMorePages() ? 'disabled' : '' }}">
-                        <a class="page-link" href="{{ $monitoringKegiatan->nextPageUrl() }}">Next</a>
-                      </li>
-                    </ul>
-                  </nav>
+                  <div id="paginationContainer">
+                    @include('monitoringkegiatan.pagination', ['monitoringKegiatan' => $monitoringKegiatan])
+                  </div>
+
                 </div>
               </div>
               <!-- End Pagination -->
@@ -278,118 +201,147 @@
               <!-- Modal Tambah Data Monitoring Kegiatan -->
               <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="addModalLabel" aria-hidden="true">
                 <div class="modal-dialog">
-                  <div class="modal-content">
+                  <div class="modal-content rounded-1">
                     <div class="modal-header">
                       <h5 class="modal-title" id="addModalLabel">Tambah Monitoring Kegiatan</h5>
                       <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                      <form action="{{ route('monitoring-kegiatan.store') }}" method="POST">
-                        @csrf
-                        <!-- Form Fields -->
-                        <div class="mb-3">
-                          <label for="kode_tim" class="form-label">Tim Kerja</label>
-                          <select class="form-select" id="kode_tim" name="kode_tim" required>
-                            <option value="" disabled selected>Pilih Tim Kerja</option>
-                            @foreach($timkerja as $tim)
-                            <option value="{{ $tim->id }}">{{ $tim->nama_tim }}</option>
-                            @endforeach
-                          </select>
-                        </div>
+                      <!-- Tab navigation -->
+                      <ul class="nav nav-pills mb-3" id="addModalTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                          <a class="nav-link active" id="manual-tab" data-bs-toggle="pill" href="#manual" role="tab" aria-controls="manual" aria-selected="true">
+                            Tambah Manual
+                          </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                          <a class="nav-link" id="excel-tab" data-bs-toggle="pill" href="#excel" role="tab" aria-controls="excel" aria-selected="false">
+                            Import Excel
+                          </a>
+                        </li>
+                      </ul>
 
-                        <!-- Data Kegiatan (dikirim lewat data attributes) -->
-                        <div id="datakegiatan" data-kegiatan="{{ json_encode($datakegiatan) }}" style="display: none;"></div>
-
-                        <!-- Form Fields for Kegiatan, Tahun, Bulan, etc -->
-                        <div class="mb-3" id="kode_kegiatan-container">
-                          <label for="kode_kegiatan" class="form-label">Nama Kegiatan</label>
-                          <select class="form-select" id="kode_kegiatan" name="kode_kegiatan" required>
-                            <option value="" disabled selected>Pilih Kegiatan</option>
-                            <!-- Opsi akan diisi lewat AJAX berdasarkan tim yang dipilih -->
-                          </select>
-                        </div>
-
-                        <!-- Input tersembunyi untuk id_data_kegiatan -->
-                        <input type="hidden" id="id_data_kegiatan" name="id_data_kegiatan">
-
-                        <!-- Tahun (Selalu Ditampilkan) -->
-                        <div class="mb-3">
-                          <label for="tahun_kegiatan" class="form-label">Tahun Kegiatan</label>
-                          <input type="number" class="form-control" id="tahun_kegiatan" name="tahun_kegiatan" required>
-                        </div>
-
-                        <!-- Bulan -->
-                        <div class="mb-3" id="bulan-container" style="display: none;">
-                          <label for="bulan" class="form-label">Bulan</label>
-                          <input type="text" class="form-control" id="bulan" name="bulan">
-                        </div>
-
-                        <!-- Triwulan -->
-                        <div class="mb-3" id="triwulan-container" style="display: none;">
-                          <label for="triwulan" class="form-label">Triwulan</label>
-                          <input type="text" class="form-control" id="triwulan" name="triwulan">
-                        </div>
-
-                        <!-- Semester -->
-                        <div class="mb-3" id="semester-container" style="display: none;">
-                          <label for="semester" class="form-label">Semester</label>
-                          <input type="text" class="form-control" id="semester" name="semester">
-                        </div>
-
-                        <!-- Input Waktu Mulai dan Waktu Selesai -->
-                        <div class="mb-3">
-                          <label for="waktu_mulai" class="form-label">Waktu Mulai</label>
-                          <input type="date" class="form-control" id="waktu_mulai" name="waktu_mulai" required>
-                        </div>
-                        <div class="mb-3">
-                          <label for="waktu_selesai" class="form-label">Waktu Selesai</label>
-                          <input type="date" class="form-control" id="waktu_selesai" name="waktu_selesai" required>
-                        </div>
-
-                        <!-- Alokasi Target Sampel -->
-                        <div class="mb-0">
-                          <label for="satuan_kerja" class="form-label mb-0">Alokasi Target</label>
-                          <br>
-                          <small class="form-text text-muted mb-3">*Pilih satuan kerja yang akan diberikan target sampel</small>
-
-                          <div id="checkboxes" class="mt-1">
-                            <div class="mb-0">
-                              <input type="checkbox" id="select_all" class="checkbox" style="margin-right: 5px;">
-                              <label for="select_all" class="mb-0">
-                                <p class="d-inline-block mb-0"><strong>Pilih Semua</strong></p>
-                              </label>
+                      <!-- Tab content -->
+                      <div class="tab-content" id="addModalTabContent">
+                        <!-- Tambah Manual Form -->
+                        <div class="tab-pane fade show active" id="manual" role="tabpanel" aria-labelledby="manual-tab">
+                          <form action="{{ route('monitoring-kegiatan.store') }}" method="POST">
+                            @csrf
+                            <!-- Form Fields -->
+                            <div class="mb-4 mt-3">
+                              <label for="kode_tim" class="form-label mb-0">Tim Kerja</label>
+                              <br>
+                              <small class="form-text text-muted mt-0 mb-3">Pilih tim kerja</small>
+                              <select class="form-select mt-1" id="kode_tim" name="kode_tim" required>
+                                <option value="" disabled selected>Pilih Tim Kerja</option>
+                                @foreach($timkerja as $tim)
+                                <option value="{{ $tim->id }}">{{ $tim->nama_tim }}</option>
+                                @endforeach
+                              </select>
                             </div>
 
-                            @foreach($satuankerja as $satker)
-                            <div class="mb-0">
-                              <input type="checkbox" name="satuan_kerja[]" value="{{ $satker->id }}" id="satuan_kerja_{{ $satker->id }}" class="checkbox satuan-checkbox" style="margin-right: 5px;">
-                              <label for="satuan_kerja_{{ $satker->id }}" class="mb-0">
-                                <p class="d-inline-block mb-0">{{ $satker->nama_satuan_kerja }}</p>
-                              </label>
+                            <!-- Data Kegiatan (dikirim lewat data attributes) -->
+                            <div id="datakegiatan" data-kegiatan="{{ json_encode($datakegiatan) }}" style="display: none;"></div>
+
+                            <!-- Form Fields for Kegiatan, Tahun, Bulan, etc -->
+                            <div class="mb-4" id="kode_kegiatan-container">
+                              <label for="kode_kegiatan" class="form-label mb-0">Nama Kegiatan</label>
+                              <br>
+                              <small class="form-text text-muted mt-0 mb-3">Pilih nama kegiatan yang akan dimonitoring</small>
+                              <select class="form-select mt-1" id="kode_kegiatan" name="kode_kegiatan" required>
+                                <option value="" disabled selected>Pilih Kegiatan</option>
+                              </select>
                             </div>
-                            @endforeach
-                          </div>
 
-                          <div id="target-sampel-container" class="mt-3"></div>
+                            <!-- Input Waktu Mulai dan Waktu Selesai -->
+                            <div class="mb-4">
+                              <label for="waktu_mulai" class="form-label mb-0">Waktu Mulai</label>
+                              <br>
+                              <small class="form-text text-muted mt-0 mb-3">Pilih tanggal mulai</small>
+                              <input type="date" class="form-control mt-1" id="waktu_mulai" name="waktu_mulai" required>
+                            </div>
+
+                            <div class="mb-4">
+                              <label for="waktu_selesai" class="form-label mb-0">Waktu Selesai</label>
+                              <br>
+                              <small class="form-text text-muted mt-0 mb-3">Pilih tanggal selesai</small>
+                              <input type="date" class="form-control mt-1" id="waktu_selesai" name="waktu_selesai" required>
+                            </div>
+
+                            <!-- Alokasi Target Sampel -->
+                            <div class="mb-0">
+                              <label for="satuan_kerja" class="form-label mb-0">Alokasi Target</label>
+
+                              <br>
+                              <small class="form-text text-muted mb-3">*Pilih satuan kerja yang akan diberikan target sampel</small>
+
+                              <div id="checkboxes" class="mt-1">
+                                <div class="mb-0">
+                                  <input type="checkbox" id="select_all" class="checkbox" style="margin-right: 5px;">
+                                  <label for="select_all" class="mb-0">
+                                    <p class="d-inline-block mb-0"><strong>Pilih Semua</strong></p>
+                                  </label>
+                                </div>
+
+                                @foreach($satuankerja as $satker)
+                                <div class="mb-0">
+                                  <input type="checkbox" name="satuan_kerja[]" value="{{ $satker->id }}" id="satuan_kerja_{{ $satker->id }}" class="checkbox satuan-checkbox" style="margin-right: 5px;">
+                                  <label for="satuan_kerja_{{ $satker->id }}" class="mb-0">
+                                    <p class="d-inline-block mb-0">[{{ $satker->kode_satuan_kerja }}] {{ $satker->nama_satuan_kerja }}</p>
+                                  </label>
+                                </div>
+                                @endforeach
+                              </div>
+
+                              <div id="target-sampel-container" class="mt-3"></div>
+                            </div>
+
+                            <div class="d-flex justify-content-end mt-3">
+                              <button type="button" class="btn text-white me-2" style="background-color: rgb(250, 82, 82);" data-bs-dismiss="modal" aria-label="Close">
+                                Batal
+                              </button>
+                              <button type="submit" class="btn btn-primary text-white">
+                                Simpan
+                              </button>
+                            </div>
+                          </form>
                         </div>
 
-                        <div class="d-flex justify-content-end mt-3">
-                          <!-- Button Batal -->
-                          <button type="button" class="btn text-white me-2" style="background-color: rgb(250, 82, 82);" data-bs-dismiss="modal" aria-label="Close">
-                            Batal
-                          </button>
+                        <!-- Import Excel Form -->
+                        <div class="tab-pane fade" id="excel" role="tabpanel" aria-labelledby="excel-tab">
+                          <form action="{{ route('monitoring-kegiatan.import') }}" method="POST" enctype="multipart/form-data">
+                            @csrf
 
-                          <!-- Button Simpan -->
-                          <button type="submit" class="btn btn-primary text-white">
-                            Simpan
-                          </button>
+                            <!-- Download Format Excel Link -->
+                            <div class="mt-3">
+                              <label class="form-label">Download Format Excel</label><br>
+                              <a href="{{ route('monitoring-kegiatan.download-format') }}" class="btn btn-link">Download Format Excel</a>
+                            </div>
+
+                            <!-- Upload Excel File -->
+                            <div class="mt-3"> <!-- Add margin-top to create distance -->
+                              <label for="excel_file" class="form-label">Pilih File Excel</label>
+                              <input type="file" class="form-control" id="excel_file" name="excel_file" accept=".xls,.xlsx" required>
+                            </div>
+
+                            <div class="d-flex justify-content-end mt-3">
+                              <button type="button" class="btn text-white me-2" style="background-color: rgb(250, 82, 82);" data-bs-dismiss="modal" aria-label="Close">
+                                Batal
+                              </button>
+                              <button type="submit" class="btn btn-primary text-white">
+                                Import
+                              </button>
+                            </div>
+                          </form>
                         </div>
-                      </form>
+
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
               <!-- End Modal -->
+
             </div>
           </div>
         </div>
@@ -407,38 +359,101 @@
 
   <script src="{{ asset('assets/js/monitoring-kegiatan.js') }}"></script>
 
+  <!-- Memuat jQuery dari CDN -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
   <script>
-    document.getElementById("searchInput").addEventListener("keyup", function() {
-      var keyword = this.value;
-      window.location.href = "/monitoring-kegiatan?search=" + keyword + "&per_page={{ request('per_page', 10) }}";
+    document.addEventListener('DOMContentLoaded', function() {
+      var currentPage = 1;
+
+      function applyFilters(page = 1) {
+        const search = document.getElementById("searchInput").value;
+        const bulan = document.getElementById("filter_bulan").value;
+        const tahun = document.getElementById("filter_tahun").value;
+        const perPageSelect = document.getElementById("per_page");
+        const perPage = perPageSelect ? perPageSelect.value : '{{ request("per_page",10) }}';
+
+        $.ajax({
+          url: "{{ route('monitoring-kegiatan') }}",
+          method: 'GET',
+          data: {
+            search: search,
+            filter_bulan: bulan,
+            filter_tahun: tahun,
+            per_page: perPage,
+            page: page
+          },
+          success: function(response) {
+            const tbody = document.querySelector("#dataTable tbody");
+            if (tbody) {
+              tbody.innerHTML = response.table;
+            }
+            document.getElementById("paginationContainer").innerHTML = response.paginationHtml;
+            const showingTextElem = document.getElementById('showingText');
+            if (showingTextElem) {
+              showingTextElem.textContent = response.showingText;
+            }
+            currentPage = page;
+          },
+          error: function(xhr) {
+            console.error('Gagal memuat data:', xhr);
+          }
+        });
+      }
+
+      let debounceTimeout;
+      document.getElementById("searchInput").addEventListener("keyup", function() {
+        clearTimeout(debounceTimeout);
+        debounceTimeout = setTimeout(() => {
+          applyFilters(1);
+        }, 300);
+      });
+
+      document.getElementById("filter_bulan").addEventListener("change", function() {
+        applyFilters(1);
+      });
+
+      document.getElementById("filter_tahun").addEventListener("change", function() {
+        applyFilters(1);
+      });
+
+      const perPageSelect = document.getElementById("per_page");
+      if (perPageSelect) {
+        perPageSelect.addEventListener("change", function() {
+          applyFilters(1);
+        });
+      }
+
+      document.getElementById('paginationContainer').addEventListener('click', function(e) {
+        if (e.target.classList.contains('page-link')) {
+          e.preventDefault();
+          const page = e.target.getAttribute('data-page');
+          if (page && page != currentPage) {
+            applyFilters(parseInt(page));
+          }
+        }
+      });
+
+      applyFilters(currentPage);
     });
   </script>
 
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-  @if (session('success'))
   <script>
-    Swal.fire({
-      icon: 'success',
-      title: 'Berhasil!',
-      text: "{{ session('success') }}",
-      showConfirmButton: true,
-      timer: 3000
-    });
+    window.routes = {
+      pendingVerifikasi: "{{ route('notifications.pending-verifikasi') }}"
+    };
   </script>
-  @endif
 
-  @if (session('error'))
   <script>
-    Swal.fire({
-      icon: 'error',
-      title: 'Gagal!',
-      text: "{{ session('error') }}",
-      showConfirmButton: true,
-      timer: 3000
-    });
+    setTimeout(() => {
+      const alertNode = document.querySelector('#alert-container .alert');
+      if (alertNode) {
+        // Bootstrap 5 way to close alert programmatically
+        let alert = new bootstrap.Alert(alertNode);
+        alert.close();
+      }
+    }, 4000); // 4 detik
   </script>
-  @endif
 
   <!-- Vendor JS Files -->
   <script src="{{ asset('assets/vendor/apexcharts/apexcharts.min.js') }}"></script>
@@ -452,6 +467,8 @@
 
   <!-- Template Main JS File -->
   <script src="assets/js/main.js"></script>
+
+  <script src="{{ asset('assets/js/notification.js') }}"></script>
 </body>
 
 </html>

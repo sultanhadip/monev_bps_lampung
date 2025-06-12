@@ -11,14 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('data_kegiatans', function (Blueprint $table) {
+        Schema::create('edit_sertifikats', function (Blueprint $table) {
             $table->id();
-            $table->integer('id_tim_kerja');
-            $table->string('nama_kegiatan');
-            $table->integer('kode_kegiatan');
-            $table->integer('kode_tim');
-            $table->string('objek_kegiatan');
-            $table->string('periode_kegiatan');
+            $table->string('nama')->unique();
+            $table->string('jabatan');
             $table->timestamps();
         });
     }
@@ -28,6 +24,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('data_kegiatans');
+        Schema::dropIfExists('edit_sertifikats');
     }
 };

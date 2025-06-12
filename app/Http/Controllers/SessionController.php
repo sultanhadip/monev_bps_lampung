@@ -26,12 +26,10 @@ class SessionController extends Controller
     public function authentication(Request $request)
     {
         // Validasi input
-        $attributes = $request->validate(
-            [
-                'username' => 'required',
-                'password' => 'required'
-            ]
-        );
+        $attributes = $request->validate([
+            'username' => 'required',
+            'password' => 'required',
+        ]);
 
         $remember = $request->has('remember');
 
@@ -40,13 +38,13 @@ class SessionController extends Controller
 
         if (Auth::attempt(['username' => $attributes['username'], 'password' => $attributes['password']], $remember)) {
             $request->session()->regenerate();
-            return redirect()->route('index')->with('success', 'Berhasil Login');
+            return redirect()->route('dashboard')->with('success', 'Berhasil Login');
         } else {
             \Log::error('Login failed for username: ' . $attributes['username']);
-            return redirect()->route('login')->withErrors('Username dan password tidak sesuai');
+            // Pastikan hanya mengirim pesan ini sekali
+            return redirect()->route('login')->withErrors(['login_error' => 'Username atau password salah']);
         }
     }
-
 
     /**
      * Mengeluarkan pengguna dari sesi dan mengalihkan mereka ke halaman login.

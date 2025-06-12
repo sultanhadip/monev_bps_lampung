@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Models\EditSertifikat;
 use App\Models\Sertifikat;
 use App\Models\Penilaian;
 use Illuminate\Http\Request;
@@ -13,32 +14,63 @@ class SertifikatController extends Controller
 {
     public function index(Request $request)
     {
-        // Menentukan jumlah records per halaman, default 10
-        $recordsPerPage = $request->input('recordsPerPage', 10);  // Ambil nilai dari query string atau default ke 10
+        // Ambil filter bulan dan tahun dari query string
+        $filterBulan = $request->input('filter_bulan');
+        $filterTahun = $request->input('filter_tahun');
+        $recordsPerPage = $request->input('recordsPerPage', 10); // Default 10 records per page
 
-        // Ambil data sertifikat sesuai dengan jumlah yang diinginkan
-        $sertifikat = Sertifikat::paginate($recordsPerPage);
+        // ambil 4 karakter terakhir dari periode_kinerja, cast ke integer, lalu unik & urutkan
+        $years = Penilaian::selectRaw(
+            "DISTINCT CAST(RIGHT(periode_kinerja, 4) AS UNSIGNED) AS year"
+        )
+            ->orderByDesc('year')
+            ->pluck('year');
+
+        // Bangun query untuk filter berdasarkan bulan dan tahun
+        $sertifikat = Sertifikat::with('penilaian.satuanKerja')  // Pastikan relasi dimuat
+            ->when($filterBulan, function ($query) use ($filterBulan) {
+                // Mengambil nama bulan dari angka bulan
+                $monthName = \Carbon\Carbon::createFromFormat('m', $filterBulan)->locale('id')->monthName;
+                // Filter berdasarkan bulan
+                $query->whereHas('penilaian', function ($query) use ($monthName) {
+                    $query->where('periode_kinerja', 'like', "%$monthName%");
+                });
+            })
+            ->when($filterTahun, function ($query) use ($filterTahun) {
+                // Jika ada filter tahun, tambahkan kondisi tahun
+                $query->whereHas('penilaian', function ($query) use ($filterTahun) {
+                    $query->where('periode_kinerja', 'like', "%$filterTahun%");
+                });
+            })
+            ->paginate($recordsPerPage);
 
         // Kirim data ke view
-        return view('sertifikat', compact('sertifikat'));
+        return view('sertifikat', compact('sertifikat', 'filterBulan', 'filterTahun', 'years'));
     }
 
 
     public function generateCertificate($sertifikatId, $download = false)
     {
         // Mengambil data sertifikat berdasarkan ID
-        $sertifikat = Sertifikat::find($sertifikatId);
+        $sertifikat = Sertifikat::with('penilaian.satuanKerja') // Memuat penilaian dan satuanKerja
+            ->find($sertifikatId);
 
         if (!$sertifikat) {
             // Jika sertifikat tidak ditemukan, beri response atau throw error
             return response()->json(['error' => 'Sertifikat tidak ditemukan'], 404);
         }
 
-        // Ambil data dari objek sertifikat
+        // Ambil data kepala BPS & jabatan dari database (tabel edit_sertifikats)
+        $kepalaData = EditSertifikat::first();
+        $namaKepala = $kepalaData->nama ?? 'Atas Parlindungan Lubis';
+        $jabatanKepala = $kepalaData->jabatan ?? 'Kepala Badan Pusat Statistik';
+
+        // Ambil data dari objek sertifikat dan relasi penilaian
         $nomor_sertifikat = $sertifikat->nomor_sertifikat;
-        $nama_satuan_kerja = $sertifikat->nama_satuan_kerja;
-        $peringkat = $sertifikat->peringkat;
-        $periode_kinerja = $sertifikat->periode_kinerja;
+        $penilaian = $sertifikat->penilaian; // Relasi penilaian
+        $nama_satuan_kerja = $penilaian->satuanKerja->nama_satuan_kerja; // Relasi satuan kerja
+        $peringkat = $penilaian->peringkat;
+        $periode_kinerja = $penilaian->periode_kinerja;
 
         // Membuat instance PDF
         $pdf = new Fpdi();
@@ -84,17 +116,21 @@ class SertifikatController extends Controller
         $pdf->Ln(1.5); // Jarak untuk paragraf berikutnya
         $pdf->MultiCell(0, 7, "di Lingkungan Badan Pusat Statistik Provinsi Lampung", 0, 'C');
         $pdf->Ln(1.5); // Jarak untuk paragraf berikutnya
-        $pdf->Cell(0, 30, 'Bandar Lampung, ' . date('d F Y'), 0, 1, 'C');
+
+        // Mendapatkan tanggal dalam format Indonesia
+        $dateIndo = \Carbon\Carbon::now()->locale('id')->translatedFormat('d F Y'); // Example: "10 Maret 2025"
+        // Menggunakan tanggal yang sudah diformat
+        $pdf->Cell(0, 30, 'Bandar Lampung, ' . $dateIndo, 0, 1, 'C');
         $pdf->Ln(15);
 
         // Footer
         $pdf->SetY(-80); // Posisi naik sedikit
         $pdf->SetFont('Arial', 'B', 12);
-        $pdf->Cell(0, 6, 'Kepala Badan Pusat Statistik', 0, 1, 'C');
+        $pdf->Cell(0, 6, $jabatanKepala, 0, 1, 'C');
         $pdf->Cell(0, 6, 'Provinsi Lampung', 0, 1, 'C');
         $pdf->Ln(25);
         $pdf->SetFont('Arial', 'B', 12);
-        $pdf->Cell(0, 6, 'Atas Parlindungan Lubis', 0, 1, 'C');
+        $pdf->Cell(0, 6, $namaKepala, 0, 1, 'C');
 
         // Menambahkan ornamen besar yang menutupi seluruh pojok sertifikat
         $pdf->Image('assets/img/ornamen.png', 0, 0, 297, 210); // Menutupi seluruh halaman A4, landscape mode
@@ -112,23 +148,42 @@ class SertifikatController extends Controller
     public function generate()
     {
         // Mendapatkan bulan dan tahun saat ini
-        $currentPeriod = now()->format('m-Y');  // Format bulan-tahun (misal: 01-2025)
+        $currentMonth = now()->format('m');  // Mendapatkan bulan saat ini
+        $currentYear = now()->format('Y');   // Mendapatkan tahun saat ini
+
+        // Mengubah bulan menjadi angka Romawi
+        $romawiMonths = [
+            '01' => 'I',
+            '02' => 'II',
+            '03' => 'III',
+            '04' => 'IV',
+            '05' => 'V',
+            '06' => 'VI',
+            '07' => 'VII',
+            '08' => 'VIII',
+            '09' => 'IX',
+            '10' => 'X',
+            '11' => 'XI',
+            '12' => 'XII'
+        ];
+        $monthInRoman = $romawiMonths[$currentMonth];
 
         // Menghapus sertifikat lama yang sudah ada untuk periode ini
-        Sertifikat::whereHas('penilaian', function ($query) use ($currentPeriod) {
-            $query->where('periode_kinerja', $currentPeriod);
+        Sertifikat::whereHas('penilaian', function ($query) use ($currentYear, $currentMonth) {
+            $query->where('periode_kinerja', $currentMonth . '-' . $currentYear);
         })->delete();
 
         // Mengambil data peringkat 1, 2, dan 3 dari penilaian
-        $topThreePenilaian = Penilaian::where('periode_kinerja', $currentPeriod)
+        $topThreePenilaian = Penilaian::where('periode_kinerja', $currentMonth . '-' . $currentYear)
             ->whereIn('peringkat', [1, 2, 3])
             ->orderBy('peringkat', 'asc') // Urutkan berdasarkan peringkat
             ->get();
 
         // Generate sertifikat untuk peringkat 1, 2, dan 3
-        foreach ($topThreePenilaian as $penilaian) {
-            // Membuat nomor sertifikat unik
-            $nomorSertifikat = 'SERT-' . strtoupper(Str::random(6));
+        foreach ($topThreePenilaian as $index => $penilaian) {
+            // Membuat nomor sertifikat sesuai format
+            // Menggunakan index untuk menghasilkan no sertifikat yang bertambah (dimulai dari 1)
+            $nomorSertifikat = ($index + 1) . '/BPS/KINERJA/' . $monthInRoman . '/' . $currentYear;
 
             // Menyimpan nomor sertifikat untuk satuan kerja dengan peringkat terbaik
             Sertifikat::create([

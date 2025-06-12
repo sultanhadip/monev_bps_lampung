@@ -19,7 +19,7 @@ return new class extends Migration
 
             // Relasi dengan tabel penilaian
             $table->foreign('id_penilaian')->references('id')->on('penilaians')
-                ->onDelete('cascade');  // Anda bisa menambahkan opsi onDelete jika perlu
+                ->onDelete('cascade');
         });
     }
 

@@ -17,6 +17,6 @@ class Sertifikat extends Model
     // Relasi dengan model Penilaian
     public function penilaian()
     {
-        return $this->belongsTo(Penilaian::class, 'id_penilaian');
+        return $this->belongsTo(Penilaian::class, 'id_penilaian', 'id');
     }
 }

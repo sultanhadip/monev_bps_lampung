@@ -12,9 +12,7 @@ class DataKegiatan extends Model
     protected $table = 'data_kegiatans'; // Nama tabel di database
 
     protected $fillable = [
-        'kode_kegiatan',
         'nama_kegiatan',
-        'kode_tim',
         'objek_kegiatan',
         'periode_kegiatan',
         'id_tim_kerja'

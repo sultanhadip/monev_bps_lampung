@@ -8,23 +8,68 @@ use App\Models\target_realisasi_satker;
 use App\Models\TimKerja;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
     public function index()
     {
-        // Ambil tim yang memiliki kegiatan, dan tampilkan nama timnya dari relasi dengan tim_kerjas
-        $timNames = TimKerja::pluck('nama_tim', 'id');  // Ambil nama_tim dari tabel tim_kerjas
+        // Ambil data tim
+        $timNames = TimKerja::pluck('nama_tim', 'id');
 
-        // Ambil semua data monitoring kegiatan
+        // Ambil semua data monitoring kegiatan beserta relasi datakegiatan
         $monitoringData = MonitoringKegiatan::with('datakegiatan')->get();
 
+        // Total seluruh kegiatan survey
+        $totalKegiatan = MonitoringKegiatan::count();
+
+        // Dapatkan awal dan akhir bulan saat ini
+        $startOfMonth = Carbon::now()->startOfMonth(); // Contoh: 2025-03-01 00:00:00
+        $endOfMonth   = Carbon::now()->endOfMonth();   // Contoh: 2025-03-31 23:59:59
+
+        // Ambil ID kegiatan yang berlangsung (overlap) di bulan ini
+        $kegiatanIds = MonitoringKegiatan::where('waktu_mulai', '<=', $endOfMonth)
+            ->where('waktu_selesai', '>=', $startOfMonth)
+            ->pluck('id');
+
+        // Hitung jumlah kegiatan yang berlangsung di bulan ini
+        $totalKegiatanBulan = $kegiatanIds->count();
+
+        // Hitung akumulasi target sampel untuk kegiatan yang berlangsung pada bulan ini
+        $totalTargetSampel = DB::table('target_realisasi_satkers')
+            ->whereIn('id', function ($query) use ($kegiatanIds) {
+                // Ambil id target yang terkait dengan kegiatan yang sedang berlangsung
+                $query->select('id')
+                    ->from('target_realisasi_satkers')
+                    ->whereIn('id_monitoring_kegiatan', $kegiatanIds);
+            })
+            ->sum('target_satker');
+
+        // Hitung akumulasi realisasi sampel dengan update terakhir per target
+        // Update_target_realisasis dihubungkan dengan target_realisasi_satkers melalui kolom id_target_realisasi
+        $totalRealisasiSampel = DB::table('update_target_realisasis as utr')
+            ->join(
+                DB::raw("(SELECT id_target_realisasi, MAX(updated_at) as latest_update FROM update_target_realisasis GROUP BY id_target_realisasi) as latest"),
+                function ($join) {
+                    $join->on('utr.id_target_realisasi', '=', 'latest.id_target_realisasi')
+                        ->on('utr.updated_at', '=', 'latest.latest_update');
+                }
+            )
+            ->join('target_realisasi_satkers as trs', 'trs.id', '=', 'utr.id_target_realisasi')
+            ->whereIn('trs.id_monitoring_kegiatan', $kegiatanIds)
+            ->where('utr.status', 'diterima')
+            ->sum('utr.realisasi_satker');
+
         return view('dashboard', [
-            'timNames' => $timNames,  // Kirim data nama tim ke view
-            'monitoringData' => $monitoringData, // Kirim data monitoring ke view
+            'timNames'              => $timNames,
+            'monitoringData'        => $monitoringData,
+            'totalKegiatan'         => $totalKegiatan,
+            'totalKegiatanBulan'    => $totalKegiatanBulan,
+            'totalTargetSampel'     => $totalTargetSampel,
+            'totalRealisasiSampel'  => $totalRealisasiSampel,
         ]);
     }
-
 
     public function getObjek(Request $request)
     {
@@ -79,7 +124,7 @@ class DashboardController extends Controller
             ->where('objek_kegiatan', $objek)
             ->where('periode_kegiatan', $periode)
             ->distinct()
-            ->pluck('nama_kegiatan', 'kode_kegiatan');
+            ->pluck('nama_kegiatan', 'id');
 
         Log::info('Nama Kegiatan:', $namaKegiatan->toArray());
 
@@ -89,174 +134,181 @@ class DashboardController extends Controller
     public function getPeriodeKegiatan(Request $request)
     {
         $kodeKegiatan = $request->get('kode_kegiatan');
-
-        if (!$kodeKegiatan) {
-            return response()->json([]);
+        if (! $kodeKegiatan) {
+            return response()->json(['waktu_kegiatan' => []]);
         }
 
-        // Ambil data dari DataKegiatan berdasarkan kode_kegiatan
-        $dataKegiatan = DataKegiatan::where('kode_kegiatan', $kodeKegiatan)
-            ->with('monitoringKegiatan') // Memuat relasi monitoringKegiatan
-            ->first(); // Mengambil satu data sesuai kode_kegiatan
-
-        if (!$dataKegiatan) {
-            return response()->json([
-                'error' => 'Data kegiatan tidak ditemukan untuk kode kegiatan ini.'
-            ], 404);
-        }
-
-        // Ambil data monitoring kegiatan yang terkait
-        $monitoringKegiatan = $dataKegiatan->monitoringKegiatan;
-
-        // Tentukan periode kegiatan dari data kegiatan
-        $periodeKegiatan = $dataKegiatan->periode_kegiatan;
-
-        // Format data untuk response
-        $response = [
-            'waktu_kegiatan' => [] // Menyimpan waktu kegiatan yang relevan
+        // Peta nama bulan
+        $mapBulan = [
+            1  => 'Januari',
+            2 => 'Februari',
+            3 => 'Maret',
+            4  => 'April',
+            5 => 'Mei',
+            6 => 'Juni',
+            7  => 'Juli',
+            8 => 'Agustus',
+            9 => 'September',
+            10 => 'Oktober',
+            11 => 'November',
+            12 => 'Desember',
         ];
 
-        // Tentukan format periode_kegiatan sesuai aturan yang diberikan
-        foreach ($monitoringKegiatan as $item) {
-            if ($item->tahun_kegiatan) {
-                // Hanya menampilkan sesuai dengan periode yang relevan
-                if ($periodeKegiatan == 'Bulanan' && $item->bulan) {
-                    $item->periode_kegiatan = $item->bulan . ' ' . $item->tahun_kegiatan;
-                    if (!in_array($item->periode_kegiatan, $response['waktu_kegiatan'])) {
-                        $response['waktu_kegiatan'][] = $item->periode_kegiatan;
-                    }
-                } elseif ($periodeKegiatan == 'Tahunan') {
-                    // Jika periode tahunan, tampilkan hanya tahun
-                    $item->periode_kegiatan = $item->tahun_kegiatan;
-                    if (!in_array($item->periode_kegiatan, $response['waktu_kegiatan'])) {
-                        $response['waktu_kegiatan'][] = $item->periode_kegiatan;
-                    }
-                } elseif ($periodeKegiatan == 'Triwulan' && $item->triwulan) {
-                    // Jika periode triwulan, tampilkan triwulan dan tahun
-                    $item->periode_kegiatan = 'Triwulan ' . $item->triwulan . ' ' . $item->tahun_kegiatan;
-                    if (!in_array($item->periode_kegiatan, $response['waktu_kegiatan'])) {
-                        $response['waktu_kegiatan'][] = $item->periode_kegiatan;
-                    }
-                } elseif ($periodeKegiatan == 'Semesteran' && $item->semester) {
-                    // Jika periode semesteran, tampilkan semester dan tahun
-                    $item->periode_kegiatan = 'Semester ' . $item->semester . ' ' . $item->tahun_kegiatan;
-                    if (!in_array($item->periode_kegiatan, $response['waktu_kegiatan'])) {
-                        $response['waktu_kegiatan'][] = $item->periode_kegiatan;
-                    }
-                }
+        // Ambil semua entry MonitoringKegiatan untuk kode ini
+        $records = MonitoringKegiatan::where('kode_kegiatan', $kodeKegiatan)->get();
+
+        $periodeList = [];
+        $tipePeriode = optional(DataKegiatan::where('id', $kodeKegiatan)->first())
+            ->periode_kegiatan;
+        $tipePeriode = strtolower($tipePeriode);
+
+        foreach ($records as $mk) {
+            $dt    = Carbon::parse($mk->waktu_mulai);
+            $month = $dt->month;
+            $year  = $dt->year;
+
+            switch ($tipePeriode) {
+                case 'bulanan':
+                    $label = "{$mapBulan[$month]} {$year}";
+                    break;
+                case 'triwulan':
+                    $q = ceil($month / 3);
+                    $label = "Triwulan {$q} {$year}";
+                    break;
+                case 'semesteran':
+                    $sem = $month <= 6 ? 'I' : 'II';
+                    $label = "Semester {$sem} {$year}";
+                    break;
+                default: // tahunan
+                    $label = (string)$year;
+            }
+
+            if (! in_array($label, $periodeList)) {
+                $periodeList[] = $label;
             }
         }
 
-        // Menambahkan waktu kegiatan yang relevan ke response
-        Log::info('Response Periode Kegiatan:', $response);
-
-        return response()->json($response);
+        return response()->json([
+            'waktu_kegiatan' => $periodeList
+        ]);
     }
+
 
     public function getFilteredData(Request $request)
     {
-        $kodeKegiatan = $request->input('kode_kegiatan');
+        $kodeKegiatan  = $request->input('kode_kegiatan');
         $waktuKegiatan = $request->input('waktu_kegiatan');
-        Log::info('Request Filtered Data:', ['waktu_kegiatan' => $waktuKegiatan]);
-        Log::info('Request Filtered Data:', ['kode_kegiatan' => $kodeKegiatan]);
 
-        // Memisahkan berdasarkan spasi
-        $parts = explode(' ', $waktuKegiatan);
-        $periode = null;
-        $identifikasi = null;
-        $bulan = null;
-        $tahun = null;
-
-        // Mengecek jumlah kata dan memisahkan
-        if (count($parts) === 3) {
-            list($periode, $identifikasi, $tahun) = $parts;  // Triwulan I 2020
-        } elseif (count($parts) === 2) {
-            list($bulan, $tahun) = $parts;  // Semester I 2020
-        } else {
-            list($tahun) = $parts;
+        if (! $kodeKegiatan || ! $waktuKegiatan) {
+            return response()->json(['error' => 'Parameter tidak lengkap.'], 400);
         }
-        $tahun = (int) $tahun;
 
-        Log::info('Bulan:', ['bulan' => $bulan]);
-        Log::info('Tahun:', ['tahun' => $tahun]);
-        Log::info('Periode:', ['periode' => $periode]);
-        Log::info('Identifikasi:', ['identifikasi' => $identifikasi]);
+        // Mapping nama bulan ke angka
+        $mapBulan = [
+            'Januari'   => 1,
+            'Februari' => 2,
+            'Maret'     => 3,
+            'April'     => 4,
+            'Mei'      => 5,
+            'Juni'      => 6,
+            'Juli'      => 7,
+            'Agustus'  => 8,
+            'September' => 9,
+            'Oktober'   => 10,
+            'November' => 11,
+            'Desember'  => 12,
+        ];
 
-        if (!$kodeKegiatan) {
-            return response()->json([
-                'error' => 'Kode kegiatan tidak boleh kosong.',
-            ], 400);
+        // Tentukan rentang tanggal berdasar format waktu_kegiatan
+        $startDate = null;
+        $endDate   = null;
+
+        // 1) Bulanan: "Januari 2025"
+        if (preg_match('/^(\p{L}+)\s+(\d{4})$/u', $waktuKegiatan, $m)) {
+            [, $nmBulan, $th] = $m;
+            $mo = $mapBulan[$nmBulan] ?? null;
+            if ($mo) {
+                $startDate = Carbon::create($th, $mo, 1)->startOfDay();
+                $endDate   = (clone $startDate)->endOfMonth()->endOfDay();
+            }
+        }
+        // 2) Triwulan: "Triwulan I 2025"
+        elseif (preg_match('/^Triwulan\s+(I|II|III|IV)\s+(\d{4})$/i', $waktuKegiatan, $m)) {
+            [, $rom, $th] = $m;
+            $q = ['I' => 1, 'II' => 2, 'III' => 3, 'IV' => 4][strtoupper($rom)];
+            $sm = ($q - 1) * 3 + 1;
+            $em = $q * 3;
+            $startDate = Carbon::create($th, $sm, 1)->startOfDay();
+            $endDate   = Carbon::create($th, $em, 1)->endOfMonth()->endOfDay();
+        }
+        // 3) Semester: "Semester I 2025"
+        elseif (preg_match('/^Semester\s+(I|II)\s+(\d{4})$/i', $waktuKegiatan, $m)) {
+            [, $rom, $th] = $m;
+            if (strtoupper($rom) === 'I') {
+                $startDate = Carbon::create($th, 1, 1)->startOfDay();
+                $endDate   = Carbon::create($th, 6, 1)->endOfMonth()->endOfDay();
+            } else {
+                $startDate = Carbon::create($th, 7, 1)->startOfDay();
+                $endDate   = Carbon::create($th, 12, 1)->endOfMonth()->endOfDay();
+            }
+        }
+        // 4) Tahunan: "2025"
+        elseif (preg_match('/^(\d{4})$/', $waktuKegiatan, $m)) {
+            $th = (int)$m[1];
+            $startDate = Carbon::create($th, 1, 1)->startOfDay();
+            $endDate   = Carbon::create($th, 12, 1)->endOfMonth()->endOfDay();
+        }
+
+        if (! $startDate || ! $endDate) {
+            return response()->json(['error' => 'Format periode tidak valid.'], 400);
         }
 
         try {
-            // Cari data kegiatan berdasarkan kode_kegiatan
-            $dataKegiatan = DataKegiatan::with('targetRealisasiSatker.updateRealisasi', 'targetRealisasiSatker.satuankerja')
+            // Ambil satu MonitoringKegiatan yang kode dan waktu_mulainya masuk rentang
+            $mk = MonitoringKegiatan::with([
+                'targetRealisasiSatker.satuankerja',       // relasi ke SatuanKerja
+                'targetRealisasiSatker.updateRealisasi'   // relasi ke update_target_realisasi
+            ])
                 ->where('kode_kegiatan', $kodeKegiatan)
-                ->first();
-            Log::info('Data slur', ['data ' => $dataKegiatan]);
+                ->whereBetween('waktu_mulai', [$startDate, $endDate])
+                ->firstOrFail();
 
-            // Menghitung akumulasi target dari semua satuan kerja
-            if ($bulan != null) {
-                $monitoringSatker = MonitoringKegiatan::with('dataKegiatan')
-                    ->where('id_data_kegiatan', $dataKegiatan->id,)->where('tahun_kegiatan', $tahun)->where("bulan", $bulan)
-                    ->first();
-            } else if ($periode == "Semester" and $identifikasi != null) {
-                $monitoringSatker = MonitoringKegiatan::with('dataKegiatan')
-                    ->where('id_data_kegiatan', $dataKegiatan->id,)->where('tahun_kegiatan', $tahun)->where("semester", $identifikasi)
-                    ->first();
-            } else if ($periode == "Triwulan" and $identifikasi != null) {
-                $monitoringSatker = MonitoringKegiatan::with('dataKegiatan')
-                    ->where('id_data_kegiatan', $dataKegiatan->id,)->where('tahun_kegiatan', $tahun)->where("triwulan", $identifikasi)
-                    ->first();
-            } else if ($periode == null and $bulan == null and $identifikasi == null) {
-                $monitoringSatker = MonitoringKegiatan::with('dataKegiatan')
-                    ->where('id_data_kegiatan', $dataKegiatan->id,)->where('tahun_kegiatan', $tahun)
-                    ->first();
-            }
-
-            //  AMBIL TARGET REALISASI YANG ID
-            // Menghitung akumulasi target dari semua satuan kerja
-            $targetRealisasiSatker = target_realisasi_satker::with('updateRealisasi')
-                ->where('id_monitoring_kegiatan', $monitoringSatker->id)
-                ->get();
-            Log::info('Data slur', ['data1' => $monitoringSatker]);
-            Log::info('Data slur', ['data2' => $targetRealisasiSatker]);
-
-
-            // Hitung total target dan realisasi
-            $totalTarget = $targetRealisasiSatker->sum('target_satker');
-            $totalRealisasi = $targetRealisasiSatker->sum(function ($item) {
-                return $item->updateRealisasi->realisasi_satker ?? 0;
+            $targets     = $mk->targetRealisasiSatker;
+            $totalTarget = $targets->sum('target_satker');
+            $totalReal   = $targets->sum(function ($t) {
+                $upd = $t->updateRealisasi()->where('status', 'diterima')->latest()->first();
+                return $upd ? $upd->realisasi_satker : 0;
             });
 
-            // Persentase data untuk chart
-            $persentaseData = $targetRealisasiSatker->map(function ($item) {
-                $realisasi = $item->updateRealisasi->realisasi_satker ?? 0;
-                $persentase = $item->target_satker > 0 ? ($realisasi / $item->target_satker) * 100 : 0;
+            // Siapkan data persentase per satuan kerja
+            $persData = $targets->map(function ($t) {
+                $upd = $t->updateRealisasi()->where('status', 'diterima')->latest()->first();
+                $real = $upd ? $upd->realisasi_satker : 0;
+                $pct  = $t->target_satker > 0 ? ($real / $t->target_satker) * 100 : 0;
                 return [
-                    'nama' => $item->satuankerja?->nama_satuan_kerja ?? 'N/A',
-                    'persentase' => round($persentase, 2),
-                    'realisasi' => round($realisasi)
+                    'nama'       => $t->satuankerja
+                        ? "[{$t->satuankerja->kode_satuan_kerja}] {$t->satuankerja->nama_satuan_kerja}"
+                        : 'N/A',
+                    'realisasi'  => round($real),
+                    'persentase' => round($pct, 2),
                 ];
             });
 
-            // Data tertinggi dan terendah
-            $tertinggi = $persentaseData->sortByDesc('persentase')->first() ?? ['nama' => '-', 'persentase' => '-'];
-            $terendah = $persentaseData->sortBy('persentase')->first() ?? ['nama' => '-', 'persentase' => '-'];
+            $highest = $persData->sortByDesc('persentase')->first() ?: ['nama' => '-', 'persentase' => '-'];
+            $lowest  = $persData->sortBy('persentase')->first()     ?: ['nama' => '-', 'persentase' => '-'];
 
             return response()->json([
-                'target' => $totalTarget,
-                'realisasi' => $totalRealisasi,
-                'persentase' => $totalTarget > 0 ? round(($totalRealisasi / $totalTarget) * 100, 2) . '%' : '0%',
-                'tertinggi' => $tertinggi,
-                'terendah' => $terendah,
-                'chartCategories' => $persentaseData->pluck('nama')->toArray(),
-                'chartTargetData' => $targetRealisasiSatker->pluck('target_satker')->toArray(),
-                'chartRealisasiData' => $persentaseData->pluck('realisasi')->toArray(),
+                'target'              => $totalTarget,
+                'realisasi'           => $totalReal,
+                'persentase'          => $totalTarget > 0 ? round($totalReal / $totalTarget * 100, 2) . '%' : '0%',
+                'tertinggi'           => $highest,
+                'terendah'            => $lowest,
+                'chartCategories'     => $persData->pluck('nama')->toArray(),
+                'chartTargetData'     => $targets->pluck('target_satker')->toArray(),
+                'chartRealisasiData'  => $persData->pluck('realisasi')->toArray(),
             ]);
-        } catch (\Exception $e) {
-            Log::error('Error fetching filtered data:', ['message' => $e->getMessage()]);
-            return response()->json(['error' => 'Terjadi kesalahan pada server.'], 500);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json(['error' => 'Tidak ada data untuk periode tersebut.'], 404);
         }
     }
 }

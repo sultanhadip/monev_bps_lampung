@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\Log;
 
 class MonitoringKegiatan extends Model
 {
@@ -12,13 +13,8 @@ class MonitoringKegiatan extends Model
     protected $table = 'monitoring_kegiatans';
 
     protected $fillable = [
-        'id_data_kegiatan',
         'kode_tim',
         'kode_kegiatan',
-        'tahun_kegiatan',
-        'bulan',
-        'triwulan',
-        'semester',
         'waktu_mulai',
         'waktu_selesai'
     ];
@@ -26,7 +22,7 @@ class MonitoringKegiatan extends Model
     // Relasi dengan DataKegiatan
     public function datakegiatan()
     {
-        return $this->belongsTo(DataKegiatan::class, 'id_data_kegiatan', 'id');
+        return $this->belongsTo(DataKegiatan::class, 'kode_kegiatan', 'id');
     }
 
     // Relasi dengan target_realisasi_satker
@@ -40,6 +36,13 @@ class MonitoringKegiatan extends Model
     {
         return $this->belongsTo(TimKerja::class, 'kode_tim', 'id');
     }
+
+    // In MonitoringKegiatan model
+    public function satuankerja()
+    {
+        return $this->belongsTo(SatuanKerja::class, 'kode_satuan_kerja', 'id');
+    }
+
 
     // Relasi dengan update_target_realisasi melalui target_realisasi_satker
     public function updateRealisasi()

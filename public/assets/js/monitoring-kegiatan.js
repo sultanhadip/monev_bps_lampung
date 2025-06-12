@@ -60,6 +60,8 @@ document.addEventListener("DOMContentLoaded", function () {
             // Menyesuaikan tampilan form berdasarkan periode kegiatan
             if (periodeKegiatan === "Bulanan") {
                 // Tampilkan input bulan
+                document.getElementById("tahun-container").style.display =
+                    "block";
                 document.getElementById("bulan-container").style.display =
                     "block";
                 document.getElementById("triwulan-container").style.display =
@@ -68,6 +70,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     "none";
             } else if (periodeKegiatan === "Triwulan") {
                 // Tampilkan input triwulan
+                document.getElementById("tahun-container").style.display =
+                    "block";
                 document.getElementById("bulan-container").style.display =
                     "none";
                 document.getElementById("triwulan-container").style.display =
@@ -76,6 +80,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     "none";
             } else if (periodeKegiatan === "Semesteran") {
                 // Tampilkan input semester
+                document.getElementById("tahun-container").style.display =
+                    "block";
                 document.getElementById("bulan-container").style.display =
                     "none";
                 document.getElementById("triwulan-container").style.display =
@@ -84,6 +90,8 @@ document.addEventListener("DOMContentLoaded", function () {
                     "block";
             } else {
                 // Tidak ada periode yang relevan, sembunyikan semua
+                document.getElementById("tahun-container").style.display =
+                    "block";
                 document.getElementById("bulan-container").style.display =
                     "none";
                 document.getElementById("triwulan-container").style.display =

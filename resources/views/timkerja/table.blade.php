@@ -1,7 +1,6 @@
 @foreach($timkerja as $key => $tim)
 <tr>
     <td scope="row">{{ $key + 1 }}</td>
-    <td>{{ $tim->kode_tim }}</td>
     <td>{{ $tim->nama_tim }}</td>
     <td>
         <!-- Edit Button -->
@@ -28,31 +27,29 @@
 <!-- Edit Modal -->
 <div class="modal fade" id="editModal{{ $tim->id }}" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
     <div class="modal-dialog">
-        <div class="modal-content">
+        <div class="modal-content rounded-1"> <!-- Remove border from modal content -->
             <form action="{{ route('timkerja.update', $tim->id) }}" method="POST">
                 @csrf
                 @method('PUT')
-                <div class="modal-header">
+                <div class="modal-header p-2"> <!-- Remove border from modal header -->
                     <h5 class="modal-title" id="editModalLabel">Edit Tim Kerja</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="kode_tim" class="form-label">Kode Tim</label>
-                        <input type="text" class="form-control" name="kode_tim" value="{{ $tim->kode_tim }}">
-                    </div>
-                    <div class="mb-3">
-                        <label for="nama_tim" class="form-label">Nama Tim</label>
-                        <input type="text" class="form-control" name="nama_tim" value="{{ $tim->nama_tim }}">
+                <div class="modal-body p-3"> <!-- Remove border from modal body -->
+                    <div class="mb-2"> <!-- Reduce margin-bottom on the form element -->
+                        <label for="nama_tim" class="form-label mb-0">Nama Tim</label>
+                        <br>
+                        <small class="form-text text-muted mt-0 mb-3">Masukkan nama tim kerja dengan huruf kapital tiap awal kata</small>
+                        <input type="text" class="form-control mt-1" name="nama_tim" value="{{ $tim->nama_tim }}">
                     </div>
                 </div>
-                <div class="modal-footer">
+                <div class="modal-footer border-0 p-2"> <!-- Remove border from modal footer -->
                     <!-- Button Batal -->
-                    <button type="button" class="btn text-white" style="background-color: rgb(250, 82, 82);" data-bs-dismiss="modal" aria-label="Close">
+                    <button type="button" class="btn btn-danger" data-bs-dismiss="modal" aria-label="Close">
                         Batal
                     </button>
                     <!-- Button Simpan -->
-                    <button type="submit" class="btn btn-primary text-white">
+                    <button type="submit" class="btn btn-primary">
                         Simpan
                     </button>
                 </div>

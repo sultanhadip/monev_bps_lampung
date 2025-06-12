@@ -13,12 +13,17 @@ return new class extends Migration
     {
         Schema::create('update_target_realisasis', function (Blueprint $table) {
             $table->id();
-            $table->integer('id_target_realisasi');
+            $table->unsignedBigInteger('id_target_realisasi');
             $table->integer('realisasi_satker');
             $table->string('bukti_dukung_realisasi')->nullable();
             $table->string('keterangan')->nullable();
+            $table->string('pesan')->nullable();
             $table->string('status')->nullable();
             $table->timestamps();
+
+            // Relasi dengan tabel penilaian
+            $table->foreign('id_target_realisasi')->references('id')->on('target_realisasi_satkers')
+                ->onDelete('cascade');
         });
     }
 

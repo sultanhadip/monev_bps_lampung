@@ -9,7 +9,6 @@ class TimKerja extends Model
 {
     use HasFactory;
     protected $fillable = [
-        'kode_tim',
         'nama_tim'
     ];
 

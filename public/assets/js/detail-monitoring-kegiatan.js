@@ -6,9 +6,16 @@ document.addEventListener("DOMContentLoaded", function () {
             const id = this.getAttribute("data-id");
             const realisasi = this.getAttribute("data-realisasi");
             const buktiDukung = this.getAttribute("data-bukti");
+            const idTargetRealisasi = this.getAttribute(
+                "data-id-target-realisasi"
+            );
+
+            console.log(id, realisasi, buktiDukung, idTargetRealisasi);
 
             // Set nilai ke dalam modal form
-            document.getElementById("id_target_realisasi").value = id;
+            document.getElementById("id_target_realisasi_approve").value =
+                idTargetRealisasi;
+            document.getElementById("id_update_realisasi").value = id;
             document.getElementById("usulan_realisasi").value = realisasi;
 
             // Tampilkan atau sembunyikan bukti dukung

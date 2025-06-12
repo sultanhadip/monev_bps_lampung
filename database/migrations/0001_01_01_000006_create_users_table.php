@@ -17,8 +17,8 @@ return new class extends Migration
             $table->string('username')->unique();
             $table->string('password');
             $table->string('role');
-            $table->integer('kode_satuan_kerja')->unique();
-            $table->integer('kode_tim')->unique();
+            $table->integer('kode_satuan_kerja');
+            $table->integer('kode_tim');
             $table->rememberToken();
             $table->timestamps();
         });

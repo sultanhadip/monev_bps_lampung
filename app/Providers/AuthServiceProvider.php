@@ -25,57 +25,29 @@ class AuthServiceProvider extends ServiceProvider
     {
         $this->registerPolicies();
 
-        Gate::define('isKepProv', function ($user) {
-            return $user->role == 'Kepala BPS Provinsi';
+        Gate::define('canExport', function ($user) {
+            // Check if the user's role matches one of the allowed roles
+            return in_array($user->role, ['Admin', 'Admin Provinsi', 'Kepala BPS']);
         });
 
-
-        Gate::define('isKepKaKo', function ($user) {
-            return $user->role == 'Kepala BPS Kab/Kota';
+        Gate::define('isKepBPS', function ($user) {
+            return $user->role == 'Kepala BPS';
         });
 
         Gate::define('isAdmin', function ($user) {
             return $user->role == 'Admin';
         });
 
-        Gate::define('isNeracaProv', function ($user) {
-            return $user->role == 'Neraca Provinsi';
+        Gate::define('isAdminSatker', function ($user) {
+            return $user->role == 'Admin Satuan Kerja';
         });
 
-        Gate::define('isSosialProv', function ($user) {
-            return $user->role == 'Sosial Provinsi';
+        Gate::define('isAdminProv', function ($user) {
+            return $user->role == 'Admin Provinsi';
         });
 
-        Gate::define('isProduksiProv', function ($user) {
-            return $user->role == 'Produksi Provinsi';
-        });
-
-        Gate::define('isDistribusiProv', function ($user) {
-            return $user->role == 'Distribusi Provinsi';
-        });
-
-        Gate::define('isIPDSProv', function ($user) {
-            return $user->role == 'IPDS Provinsi';
-        });
-
-        Gate::define('isNeracaKaKo', function ($user) {
-            return $user->role == 'Neraca Kabupaten/Kota';
-        });
-
-        Gate::define('isSosialKaKo', function ($user) {
-            return $user->role == 'Sosial Kabupaten/Kota';
-        });
-
-        Gate::define('isProduksiKaKo', function ($user) {
-            return $user->role == 'Produksi Kabupaten/Kota';
-        });
-
-        Gate::define('isDistribusiKaKo', function ($user) {
-            return $user->role == 'Distribusi Kabupaten/Kota';
-        });
-
-        Gate::define('isIPDSKaKo', function ($user) {
-            return $user->role == 'IPDS Kabupaten/Kota';
+        Gate::define('isOperator', function ($user) {
+            return $user->role == 'Operator';
         });
     }
 }

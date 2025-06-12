@@ -39,3 +39,40 @@ $(document).ready(function () {
         });
     });
 });
+
+$(document).ready(function () {
+    // Ambil URL dari elemen HTML
+    var url = $("#ajax-url").data("url");
+
+    // Tangani peristiwa 'keyup' pada kolom pencarian
+    $("#searchInput").on("keyup", function () {
+        var search = $(this).val(); // Ambil nilai pencarian
+        var recordsPerPage = $("#recordsPerPage").val(); // Ambil jumlah data per halaman
+
+        // Kirim permintaan Ajax ke server
+        $.ajax({
+            url: url,
+            method: "GET",
+            data: {
+                search: search,
+                recordsPerPage: recordsPerPage,
+            },
+            success: function (response) {
+                // Perbarui tabel dengan data yang diterima
+                $("#dataTable tbody").html(response.table);
+
+                // Update text showing berdasarkan jumlah data hasil pencarian
+                $("#showingText").text(response.showingText);
+            },
+        });
+    });
+});
+
+document
+    .getElementById("recordsPerPage")
+    .addEventListener("change", function () {
+        var recordsPerPage = this.value;
+        var url = new URL(window.location.href);
+        url.searchParams.set("recordsPerPage", recordsPerPage);
+        window.location.href = url.toString();
+    });

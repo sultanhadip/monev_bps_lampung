@@ -52,22 +52,25 @@
 
 <!-- Edit Modal -->
 <div class="modal fade" id="editModal{{ $item->id }}" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered"> <!-- Modal Centered untuk penempatan yang lebih rapi -->
-        <div class="modal-content">
+    <div class="modal-dialog"> <!-- Modal Centered untuk penempatan yang lebih rapi -->
+        <div class="modal-content rounded-1">
+            <!-- Formulir Edit Modal -->
             <form action="{{ route('monitoringkegiatan.update', $item->id) }}" method="POST">
                 @csrf
                 @method('PUT') <!-- Pastikan menggunakan method PUT -->
 
                 <div class="modal-header">
-                    <h5 class="modal-title" id="editModalLabel">Edit Kegiatan Monitoring</h5>
+                    <h5 class="modal-title" id="editModalLabel">Edit Monitoring Kegiatan</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
 
                 <div class="modal-body">
                     <!-- Kode Tim -->
-                    <div class="mb-3">
-                        <label for="kode_tim_{{ $item->id }}" class="form-label">Tim Kerja</label>
-                        <select class="form-select" id="kode_tim_{{ $item->id }}" name="kode_tim" required>
+                    <div class="mb-4">
+                        <label for="kode_tim_{{ $item->id }}" class="form-label mb-0">Tim Kerja</label>
+                        <br>
+                        <small class="form-text text-muted mt-0 mb-3">Pilih tim kerja</small>
+                        <select class="form-select mt-1" id="kode_tim_{{ $item->id }}" name="kode_tim" required>
                             <option value="" disabled>Pilih Tim Kerja</option>
                             @foreach($timkerja as $tim)
                             <option value="{{ $tim->id }}" {{ $item->kode_tim == $tim->id ? 'selected' : '' }}>
@@ -78,9 +81,11 @@
                     </div>
 
                     <!-- Kode Kegiatan -->
-                    <div class="mb-3">
-                        <label for="kode_kegiatan_{{ $item->id }}" class="form-label">Nama Kegiatan</label>
-                        <select class="form-select" id="kode_kegiatan_{{ $item->id }}" name="kode_kegiatan" required>
+                    <div class="mb-4">
+                        <label for="kode_kegiatan_{{ $item->id }}" class="form-label mb-0">Nama Kegiatan</label>
+                        <br>
+                        <small class="form-text text-muted mt-0 mb-3">Pilih nama kegiatan yang akan dimonitoring</small>
+                        <select class="form-select mt-1" id="kode_kegiatan_{{ $item->id }}" name="kode_kegiatan" required>
                             <option value="" disabled>Pilih Kegiatan</option>
                             @foreach($datakegiatan as $kegiatan)
                             <option value="{{ $kegiatan->id }}" {{ $item->kode_kegiatan == $kegiatan->id ? 'selected' : '' }}>
@@ -90,44 +95,50 @@
                         </select>
                     </div>
 
-                    <!-- Tahun Kegiatan -->
-                    <div class="mb-3">
-                        <label for="tahun_kegiatan_{{ $item->id }}" class="form-label">Tahun Kegiatan</label>
-                        <input type="number" class="form-control" id="tahun_kegiatan_{{ $item->id }}" name="tahun_kegiatan" value="{{ old('tahun_kegiatan', $item->tahun_kegiatan) }}" required>
-                    </div>
-
                     <!-- Waktu Mulai -->
-                    <div class="mb-3">
-                        <label for="waktu_mulai_{{ $item->id }}" class="form-label">Waktu Mulai</label>
-                        <input type="date" class="form-control" id="waktu_mulai_{{ $item->id }}" name="waktu_mulai" value="{{ old('waktu_mulai', $item->waktu_mulai) }}" required>
+                    <div class="mb-4">
+                        <label for="waktu_mulai_{{ $item->id }}" class="form-label mb-0">Waktu Mulai</label>
+                        <br>
+                        <small class="form-text text-muted mt-0 mb-3">Pilih tanggal mulai</small>
+                        <input type="date" class="form-control mt-1" id="waktu_mulai_{{ $item->id }}" name="waktu_mulai"
+                            value="{{ old('waktu_mulai', $item->waktu_mulai) }}" required>
                     </div>
 
                     <!-- Waktu Selesai -->
-                    <div class="mb-3">
-                        <label for="waktu_selesai_{{ $item->id }}" class="form-label">Waktu Selesai</label>
-                        <input type="date" class="form-control" id="waktu_selesai_{{ $item->id }}" name="waktu_selesai" value="{{ old('waktu_selesai', $item->waktu_selesai) }}" required>
+                    <div class="mb-4">
+                        <label for="waktu_selesai_{{ $item->id }}" class="form-label mb-0">Waktu Selesai</label>
+                        <br>
+                        <small class="form-text text-muted mt-0 mb-3">Pilih tanggal selesai</small>
+                        <input type="date" class="form-control mt-1" id="waktu_selesai_{{ $item->id }}" name="waktu_selesai"
+                            value="{{ old('waktu_selesai', $item->waktu_selesai ? \Carbon\Carbon::parse($item->waktu_selesai)->format('Y-m-d') : '') }}" required>
+
+                        @error('waktu_selesai')
+                        <div class="text-danger">{{ $message }}</div>
+                        @enderror
                     </div>
 
-                    <!-- Satuan Kerja & Target Sampel -->
-                    <div class="mb-3">
-                        <label class="form-label">Satuan Kerja & Target Sampel</label>
+                    <!-- Alokasi Target Sampel -->
+                    <div class="mb-4">
+                        <label class="form-label mb-0">Alokasi Target</label>
+                        <br>
+                        <small class="form-text text-muted mt-0 mb-3">Tentukan target sampel untuk tiap satuan kerja</small>
                         @foreach ($satuankerja as $satker)
-                        <div class="d-flex mb-2">
-                            <label class="me-3">{{ $satker->nama_satuan_kerja }}</label>
-                            <input type="number" class="form-control" name="target_sampel[{{ $satker->id }}]"
-                                value="{{ old('target_sampel.' . $satker->id, $item->targetRealisasiSatker->where('kode_satuan_kerja', $satker->id)->first()->target_satker ?? 0) }}"
-                                placeholder="Target Sampel" required style="width: 100%;">
+                        <div class="row mb-2">
+                            <label for="target_{{ $satker->id }}" class="col-sm-4 col-form-label" style="font-size: 11px;">[{{ $satker->kode_satuan_kerja }}] {{ $satker->nama_satuan_kerja }}</label>
+                            <div class="col-sm-8">
+                                <input type="number" class="form-control" name="target_sampel[{{ $satker->id }}]" value="{{ old('target_sampel.' . $satker->id, $item->targetRealisasiSatker->where('kode_satuan_kerja', $satker->id)->first()->target_satker ?? 0) }}" placeholder="Target Sampel" required style="font-size: 12px;">
+                            </div>
                         </div>
                         @endforeach
                     </div>
+
                 </div>
 
-                <div class="modal-footer">
+                <div class="modal-footer border-0">
                     <button type="button" class="btn text-white" style="background-color: rgb(250, 82, 82);" data-bs-dismiss="modal">Batal</button>
                     <button type="submit" class="btn btn-primary text-white">Simpan</button>
                 </div>
             </form>
-
         </div>
     </div>
 </div>

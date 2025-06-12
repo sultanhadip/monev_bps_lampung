@@ -61,12 +61,48 @@
             <div class="card-body">
               <h5 class="card-title">Sertifikat Kinerja Terbaik</h5>
 
+              <!-- Baris 2: Form Filter (mengisi full width) -->
+              <form id="filterForm"
+                action="{{ route('sertifikat') }}"
+                method="GET"
+                class="row g-3 align-items-center mb-3">
+
+                <!-- Filter Bulan -->
+                <div class="col-md-6">
+                  <select name="filter_bulan"
+                    class="form-select"
+                    onchange="this.form.submit()">
+                    <option value="">Semua Bulan</option>
+                    @foreach(range(1,12) as $m)
+                    <option value="{{ $m }}"
+                      {{ (int)request('filter_bulan') === $m ? 'selected' : '' }}>
+                      {{ \Carbon\Carbon::create()->month($m)->format('F') }}
+                    </option>
+                    @endforeach
+                  </select>
+                </div>
+
+                <!-- Filter Tahun -->
+                <div class="col-md-6">
+                  <select name="filter_tahun" class="form-select" onchange="this.form.submit()">
+                    <option value="">Semua Tahun</option>
+                    @foreach($years as $yr)
+                    <option value="{{ $yr }}" {{ request('filter_tahun') == $yr ? 'selected' : '' }}>
+                      {{ $yr }}
+                    </option>
+                    @endforeach
+                  </select>
+                </div>
+
+                <!-- Hidden per_page untuk pagination -->
+                <input type="hidden" name="per_page" value="{{ request('per_page', 10) }}">
+              </form>
+
               <!-- Table with hoverable rows and horizontal scroll -->
               <div style="overflow-x: auto;">
                 <table class="table table-hover table-bordered text-center mb-4" id="dataTable">
                   <thead>
                     <tr>
-                      <th scope="col">Nomor</th>
                       <th scope="col">Nomor Sertifikat</th>
                       <th scope="col">Satuan Kerja</th>
                       <th scope="col">Periode</th>
@@ -77,9 +113,15 @@
                   <tbody>
                     @foreach($sertifikat as $sertif)
                     <tr>
-                      <td scope="row">{{ $loop->iteration }}</td>
                       <td>{{ $sertif->nomor_sertifikat }}</td>
-                      <td>{{ $sertif->penilaian->satuanKerja->nama_satuan_kerja ?? 'N/A' }}</td> <!-- Menampilkan nama_satuan_kerja -->
+                      <td>
+                        @if($sertif->penilaian && $sertif->penilaian->satuanKerja)
+                        [{{ $sertif->penilaian->satuanKerja->kode_satuan_kerja }}]
+                        {{ $sertif->penilaian->satuanKerja->nama_satuan_kerja }}
+                        @else
+                        N/A
+                        @endif
+                      </td>
                       <td>{{ $sertif->penilaian->periode_kinerja }}</td>
                       <td>{{ $sertif->penilaian->peringkat }}</td>
                       <td>
@@ -99,7 +141,6 @@
                     @endforeach
                   </tbody>
                 </table>
-
 
               </div>
               <!-- End Table with hoverable rows and horizontal scroll -->
@@ -173,6 +214,9 @@
     href="#"
     class="back-to-top d-flex align-items-center justify-content-center"><i class="bi bi-arrow-up-short"></i></a>
 
+  <!-- Include jQuery -->
+  <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
   <script>
     $(document).ready(function() {
       // Ketika pilihan jumlah records per page diubah
@@ -182,6 +226,12 @@
         window.location.href = "{{ url()->current() }}?recordsPerPage=" + perPage;
       });
     });
+  </script>
+
+  <script>
+    window.routes = {
+      pendingVerifikasi: "{{ route('notifications.pending-verifikasi') }}"
+    };
   </script>
 
   <!-- Vendor JS Files -->
@@ -196,6 +246,8 @@
 
   <!-- Template Main JS File -->
   <script src="assets/js/main.js"></script>
+
+  <script src="{{ asset('assets/js/notification.js') }}"></script>
 </body>
 
 </html>

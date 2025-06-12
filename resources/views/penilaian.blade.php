@@ -59,39 +59,76 @@
         <div class="col-lg-12">
           <div class="card">
             <div class="card-body">
-              <h5 class="card-title">Penilaian Kinerja</h5>
 
-              <!-- Table with hoverable rows and horizontal scroll -->
-              <div style="overflow-x: auto;">
-                <div class="d-flex justify-content-end mb-3">
-                  <button id="generateButton" class="btn btn-primary">Generate</button>
+              <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="card-title mb-0">Penilaian Kinerja</h5>
+                <div>
+                  @if(auth()->user()->can('isAdmin') || auth()->user()->can('isAdminProv'))
+                  <button id="generateButton" class="btn btn-primary mt-3">Generate</button>
+                  @endif
+                </div>
+              </div>
+
+              <!-- Baris 2: Form Filter (mengisi full width) -->
+              <form id="filterForm"
+                action="{{ route('penilaian') }}"
+                method="GET"
+                class="row g-3 align-items-center mb-3">
+
+                <!-- Filter Bulan -->
+                <div class="col-md-6">
+                  <select name="filter_bulan"
+                    class="form-select"
+                    onchange="this.form.submit()">
+                    <option value="">Semua Bulan</option>
+                    @foreach(range(1,12) as $m)
+                    <option value="{{ $m }}"
+                      {{ (int)request('filter_bulan') === $m ? 'selected' : '' }}>
+                      {{ \Carbon\Carbon::create()->month($m)->format('F') }}
+                    </option>
+                    @endforeach
+                  </select>
                 </div>
 
-                <table class="table table-hover table-bordered text-center mb-4" id="dataTable">
+                <!-- Filter Tahun -->
+                <div class="col-md-6">
+                  <select name="filter_tahun" class="form-select" onchange="this.form.submit()">
+                    <option value="">Semua Tahun</option>
+                    @foreach($years as $yr)
+                    <option value="{{ $yr }}" {{ request('filter_tahun') == $yr ? 'selected' : '' }}>
+                      {{ $yr }}
+                    </option>
+                    @endforeach
+                  </select>
+                </div>
+
+                <!-- Hidden per_page untuk pagination -->
+                <input type="hidden" name="per_page" value="{{ request('per_page', 10) }}">
+              </form>
+
+              <!-- Tabel Penilaian -->
+              <div style="overflow-x: auto;">
+                <table class="table table-hover table-bordered text-center mb-3" id="dataTable">
                   <thead>
                     <tr>
-                      <th scope="col">Nomor</th>
                       <th scope="col">Satuan Kerja</th>
                       <th scope="col">Periode</th>
                       <th scope="col">Nilai</th>
-                      <th scope="col">Peringkat</th>
                     </tr>
                   </thead>
                   <tbody>
                     @foreach($penilaian as $key => $nilai)
                     <tr>
-                      <th scope="row">{{ $key + 1 }}</th>
-                      <td>{{ $nilai->satuanKerja->nama_satuan_kerja }}</td> <!-- Menampilkan nama satuan kerja -->
+                      <td>
+                        {{ $nilai->satuanKerja ? "[{$nilai->satuanKerja->kode_satuan_kerja}] {$nilai->satuanKerja->nama_satuan_kerja}" : 'N/A' }}
+                      </td>
                       <td>{{ $nilai->periode_kinerja }}</td>
                       <td>{{ $nilai->nilai_kinerja }}</td>
-                      <td>{{ $nilai->peringkat }}</td>
                     </tr>
                     @endforeach
                   </tbody>
                 </table>
-
               </div>
-              <!-- End Table with hoverable rows and horizontal scroll -->
 
               <!-- Records per page and Pagination -->
               <div class="d-flex justify-content-between align-items-center">
@@ -196,6 +233,12 @@
     });
   </script>
 
+  <script>
+    window.routes = {
+      pendingVerifikasi: "{{ route('notifications.pending-verifikasi') }}"
+    };
+  </script>
+
   <!-- Vendor JS Files -->
   <script src="{{ asset('assets/vendor/apexcharts/apexcharts.min.js') }}"></script>
   <script src="{{ asset('assets/vendor/bootstrap/js/bootstrap.bundle.min.js') }}"></script>
@@ -208,6 +251,8 @@
 
   <!-- Template Main JS File -->
   <script src="assets/js/main.js"></script>
+
+  <script src="{{ asset('assets/js/notification.js') }}"></script>
 </body>
 
 </html>

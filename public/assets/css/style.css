@@ -1229,3 +1229,14 @@ h6 {
     font-size: 13px;
     color: #012970;
 }
+
+.legend-color {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    margin-right: 6px;
+    border-radius: 2px;
+}
+#chartLegend .legend-item {
+    font-size: 0.9rem;
+}

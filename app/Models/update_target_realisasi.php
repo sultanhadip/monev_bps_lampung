@@ -14,6 +14,7 @@ class update_target_realisasi extends Model
         'realisasi_satker',
         'bukti_dukung_realisasi',
         'keterangan',
+        'pesan',
         'status'
     ];
 

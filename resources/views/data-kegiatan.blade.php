@@ -49,7 +49,7 @@
       <nav>
         <ol class="breadcrumb">
           <li class="breadcrumb-item" style="font-size: 18px;">Master Data</li>
-          <li class="breadcrumb-item active" style="font-size: 18px;"><a href="{{ route('data-kegiatan') }}">Data Kegiatan</a></li>
+          <li class="breadcrumb-item active" style="font-size: 18px;"><a href="{{ route('data-kegiatan') }}">Kegiatan</a></li>
         </ol>
       </nav>
     </div>
@@ -60,17 +60,83 @@
         <div class="col-lg-12">
           <div class="card">
             <div class="card-body">
-              <h5 class="card-title">Data Kegiatan Statistik</h5>
+              <!-- Card Title and Add Button in the same row -->
+              <div class="d-flex justify-content-between align-items-center mb-4">
+                <h5 class="card-title mb-0">Data Kegiatan Statistik</h5>
+                <div>
+                  <button class="btn btn-primary d-flex align-items-center mt-3" data-bs-toggle="modal" data-bs-target="#addModal">
+                    <i class="bi bi-plus me-1 text-white"></i> Tambah
+                  </button>
+                </div>
+              </div>
 
-              <!-- Search and Add Button -->
-              <div class="d-flex justify-content-between mb-3">
-                <!-- Search Bar -->
-                <input type="text" class="form-control w-25" id="searchInput" placeholder="Cari Kegiatan">
+              <div id="alert-container">
+                {{-- Alert Success --}}
+                @if(session('success'))
+                <div class="alert alert-success alert-dismissible fade show" role="alert" style="font-size: 0.9rem;">
+                  {{ session('success') }}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                @endif
 
-                <!-- Add Button -->
-                <button class="btn btn-primary d-flex align-items-center" data-bs-toggle="modal" data-bs-target="#addModal">
-                  <i class="bi bi-plus me-1 text-white"></i> Tambah
-                </button>
+                {{-- Alert General Error --}}
+                @if(session('error'))
+                <div class="alert alert-danger alert-dismissible fade show" role="alert" style="font-size: 0.9rem;">
+                  {{ session('error') }}
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                @endif
+
+                {{-- Alert Duplikat --}}
+                @if(session('duplicate_errors'))
+                <div class="alert alert-warning alert-dismissible fade show" role="alert" style="white-space: pre-line; line-height: 1.2; font-size: 0.9rem;">
+                  <strong class="mb-1 d-block">Kegiatan sudah pernah ditambahkan:</strong>
+                  <span>{!! nl2br(e(session('duplicate_errors'))) !!}</span>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                @endif
+
+                {{-- Alert Baris Tidak Valid --}}
+                @if(session('error_rows'))
+                <div class="alert alert-danger alert-dismissible fade show" role="alert" style="white-space: pre-line; line-height: 1.2; font-size: 0.9rem;">
+                  <strong class="mb-1 d-block">Data tidak valid atau tidak lengkap:</strong>
+                  <span>{!! nl2br(e(session('error_rows'))) !!}</span>
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                @endif
+
+                {{-- Alert Validasi Nama Kegiatan --}}
+                @if($errors->has('nama_kegiatan'))
+                <div class="alert alert-danger alert-dismissible fade show" role="alert" style="font-size: 0.9rem;">
+                  Kegiatan sudah ditambahkan
+                  <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+                @endif
+              </div>
+
+              <!-- Baris Search dan Filter -->
+              <div class="d-flex mb-3" style="gap: 1rem;">
+                <!-- Search Bar, 70% lebar -->
+                <input
+                  type="text"
+                  class="form-control"
+                  id="searchInput"
+                  placeholder="Cari Kegiatan"
+                  value="{{ request('search') }}"
+                  style="flex: 7;" />
+
+                <!-- Dropdown Filter Tim Kerja, 30% lebar -->
+                <select
+                  id="filterTim"
+                  class="form-select"
+                  style="flex: 3;">
+                  <option value="">Pilih Tim Kerja</option>
+                  @foreach ($timkerja as $tim)
+                  <option value="{{ $tim->id }}" {{ request('filter_tim') == $tim->id ? 'selected' : '' }}>
+                    {{ $tim->nama_tim }}
+                  </option>
+                  @endforeach
+                </select>
               </div>
 
               <!-- Table with hoverable rows -->
@@ -78,7 +144,6 @@
                 <thead>
                   <tr>
                     <th scope="col">Nomor</th>
-                    <th scope="col">Kode Kegiatan</th>
                     <th scope="col">Nama Kegiatan</th>
                     <th scope="col">Tim Kerja</th>
                     <th scope="col">Objek</th>
@@ -97,7 +162,7 @@
               <div class="d-flex justify-content-between align-items-center">
                 <!-- Showing Text -->
                 <div class="me-3">
-                  <span>Showing {{ $from }}-{{ $to }} of {{ $totalRecords }} records</span>
+                  <span id="showingText">Showing {{ $datakegiatan->firstItem() }}-{{ $datakegiatan->lastItem() }} of {{ $totalRecords }} records</span>
                 </div>
 
                 <!-- Records Per Page Dropdown and Pagination at the right -->
@@ -144,72 +209,124 @@
                   </nav>
                 </div>
               </div>
-              <!-- End Pagination -->
 
               <!-- Modal Tambah Data Kegiatan -->
               <div class="modal fade" id="addModal" tabindex="-1" aria-labelledby="addModalLabel" aria-hidden="true">
                 <div class="modal-dialog">
-                  <div class="modal-content">
+                  <div class="modal-content rounded-1">
                     <div class="modal-header">
                       <h5 class="modal-title" id="addModalLabel">Tambah Data Kegiatan</h5>
                       <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                     </div>
                     <div class="modal-body">
-                      <!-- Form tambah data kegiatan -->
-                      <form action="{{ route('datakegiatan.store') }}" method="POST">
-                        @csrf
+                      <!-- Tab navigation -->
+                      <ul class="nav nav-pills mb-3" id="addModalTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                          <a class="nav-link active" id="manual-tab" data-bs-toggle="pill" href="#manual" role="tab" aria-controls="manual" aria-selected="true">
+                            Tambah Manual
+                          </a>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                          <a class="nav-link" id="excel-tab" data-bs-toggle="pill" href="#excel" role="tab" aria-controls="excel" aria-selected="false">
+                            Import Excel
+                          </a>
+                        </li>
+                      </ul>
 
-                        <div class="mb-3">
-                          <label for="kode_tim" class="form-label">Tim Kerja</label>
-                          <select class="form-select" id="kode_tim" name="kode_tim" required>
-                            <option value="">Pilih Tim Kerja</option>
-                            @foreach ($timkerja as $tim)
-                            <option value="{{ $tim->id }}">{{ $tim->nama_tim }}</option>
-                            @endforeach
-                          </select>
+                      <!-- Tab content -->
+                      <div class="tab-content" id="addModalTabContent">
+                        <!-- Tambah Manual Form -->
+                        <div class="tab-pane fade show active" id="manual" role="tabpanel" aria-labelledby="manual-tab">
+                          <form action="{{ route('datakegiatan.store') }}" method="POST">
+                            @csrf
+
+                            <div class="mb-4 mt-3">
+                              <label for="kode_tim" class="form-label mb-0">Tim Kerja</label>
+                              <br>
+                              <small class="form-text text-muted mt-0 mb-3">Pilih Tim Kerja</small>
+                              <select class="form-select mt-1" id="kode_tim" name="kode_tim" required>
+                                <option value="">Pilih Tim Kerja</option>
+                                @foreach ($timkerja as $tim)
+                                <option value="{{ $tim->id }}">{{ $tim->nama_tim }}</option>
+                                @endforeach
+                              </select>
+                            </div>
+
+                            <div class="mb-4">
+                              <label for="nama_kegiatan" class="form-label mb-0">Nama Kegiatan</label>
+                              <br>
+                              <small class="form-text text-muted mt-0 mb-3">Masukkan nama kegiatan dengan huruf kapital tiap awal kata</small>
+                              <input type="text" class="form-control mt-1" id="nama_kegiatan" name="nama_kegiatan" required>
+                            </div>
+
+                            <div class="mb-4">
+                              <label for="objek_kegiatan" class="form-label mb-0">Objek Kegiatan</label>
+                              <br>
+                              <small class="form-text text-muted mt-0 mb-3">Pilih objek kegiatan</small>
+                              <select class="form-select mt-1" id="objek_kegiatan" name="objek_kegiatan" required>
+                                <option value="">Pilih Objek Kegiatan</option>
+                                <option value="Rumah Tangga">Rumah Tangga</option>
+                                <option value="Usaha">Usaha</option>
+                                <option value="Lainnya">Lainnya</option>
+                              </select>
+                            </div>
+
+                            <div class="mb-4">
+                              <label for="periode_kegiatan" class="form-label mb-0">Periode Kegiatan</label>
+                              <br>
+                              <small class="form-text text-muted mt-0 mb-3">Pilih periode kegiatan</small>
+                              <select class="form-select mt-1" id="periode_kegiatan" name="periode_kegiatan" required data-bs-menu-direction="down">
+                                <option value="">Pilih Periode Kegiatan</option>
+                                <option value="Bulanan">Bulanan</option>
+                                <option value="Triwulan">Triwulan</option>
+                                <option value="Semesteran">Semesteran</option>
+                                <option value="Tahunan">Tahunan</option>
+                              </select>
+                            </div>
+
+                            <!-- Tombol Simpan dan Cancel -->
+                            <div class="d-flex justify-content-end mt-3">
+                              <!-- Button Batal -->
+                              <button type="button" class="btn text-white me-2" style="background-color: rgb(250, 82, 82);" data-bs-dismiss="modal" aria-label="Close">
+                                Batal
+                              </button>
+
+                              <!-- Button Simpan -->
+                              <button type="submit" class="btn btn-primary text-white">
+                                Simpan
+                              </button>
+                            </div>
+                          </form>
                         </div>
 
-                        <div class="mb-3">
-                          <label for="objek_kegiatan" class="form-label">Objek Kegiatan</label>
-                          <select class="form-select" id="objek_kegiatan" name="objek_kegiatan" required>
-                            <option value="">Pilih Objek Kegiatan</option>
-                            <option value="Rumah Tangga">Rumah Tangga</option>
-                            <option value="Usaha">Usaha</option>
-                            <option value="Lainnya">Lainnya</option>
-                          </select>
-                        </div>
-                        <div class="mb-3">
-                          <label for="periode_kegiatan" class="form-label">Periode Kegiatan</label>
-                          <select class="form-select" id="periode_kegiatan" name="periode_kegiatan" required data-bs-menu-direction="down">
-                            <option value="">Pilih Periode Kegiatan</option>
-                            <option value="Bulanan">Bulanan</option>
-                            <option value="Triwulan">Triwulan</option>
-                            <option value="Semesteran">Semesteran</option>
-                            <option value="Tahunan">Tahunan</option>
-                          </select>
-                        </div>
-                        <div class="mb-3">
-                          <label for="nama_kegiatan" class="form-label">Nama Kegiatan</label>
-                          <input type="text" class="form-control" id="nama_kegiatan" name="nama_kegiatan" required>
-                        </div>
-                        <div class="mb-3">
-                          <label for="kode_kegiatan" class="form-label">Kode Kegiatan</label>
-                          <input type="text" class="form-control" id="kode_kegiatan" name="kode_kegiatan" required>
+                        <!-- Import Excel Form -->
+                        <div class="tab-pane fade" id="excel" role="tabpanel" aria-labelledby="excel-tab">
+                          <form action="{{ route('datakegiatan.import') }}" method="POST" enctype="multipart/form-data">
+                            @csrf
+                            <!-- Download Format Excel Link -->
+                            <div class="mt-3">
+                              <label class="form-label">Download Format Excel</label><br>
+                              <a href="{{ route('datakegiatan.download-format') }}" class="btn btn-link">Download Format Excel</a>
+                            </div>
+
+                            <!-- Upload Excel File -->
+                            <div class="mt-3">
+                              <label for="excel_file" class="form-label">Pilih File Excel</label>
+                              <input type="file" class="form-control" id="excel_file" name="excel_file" accept=".xls,.xlsx" required>
+                            </div>
+
+                            <div class="d-flex justify-content-end mt-3">
+                              <button type="button" class="btn text-white me-2" style="background-color: rgb(250, 82, 82);" data-bs-dismiss="modal" aria-label="Close">
+                                Batal
+                              </button>
+                              <button type="submit" class="btn btn-primary text-white">
+                                Import
+                              </button>
+                            </div>
+                          </form>
                         </div>
 
-                        <!-- Tombol Simpan dan Cancel -->
-                        <div class="d-flex justify-content-end mt-3">
-                          <!-- Button Batal -->
-                          <button type="button" class="btn text-white me-2" style="background-color: rgb(250, 82, 82);" data-bs-dismiss="modal" aria-label="Close">
-                            Batal
-                          </button>
-
-                          <!-- Button Simpan -->
-                          <button type="submit" class="btn btn-primary text-white">
-                            Simpan
-                          </button>
-                        </div>
-                      </form>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -241,150 +358,79 @@
 
   <script>
     $(document).ready(function() {
-      // Ambil URL dari elemen HTML (pastikan elemen ini ada pada halaman)
-      var url = $('#ajax-url').data('url'); // URL untuk permintaan AJAX
+      // Ambil URL dari elemen HTML
+      var url = $('#ajax-url').data('url');
 
-      // Tangani peristiwa 'keyup' pada kolom pencarian
-      $('#searchInput').on('keyup', function() {
-        var search = $(this).val(); // Ambil nilai pencarian
+      // Fungsi untuk fetch data dengan search, recordsPerPage, dan filterTim
+      function fetchData() {
+        var search = $('#searchInput').val(); // Ambil nilai pencarian
         var recordsPerPage = $('#recordsPerPage').val(); // Ambil jumlah data per halaman
+        var filterTim = $('#filterTim').val(); // Ambil nilai dropdown filter tim kerja
 
-        // Kirim permintaan Ajax ke server
+        // Kirim permintaan Ajax ke server dengan semua parameter
         $.ajax({
           url: url,
           method: 'GET',
           data: {
             search: search,
-            per_page: recordsPerPage // Kirim jumlah records per halaman ke server
+            recordsPerPage: recordsPerPage,
+            filter_tim: filterTim
           },
           success: function(response) {
             // Perbarui tabel dengan data yang diterima
-            $('#dataTable tbody').html(response.data); // Update tabel dengan data yang baru
+            $('#dataTable tbody').html(response.table);
 
-            // Update informasi jumlah record yang ditampilkan
-            $(".me-3 span").text(`Showing ${response.from}-${response.to} of ${response.total} records`);
-
-            // Update pagination
-            var pagination = $('.pagination');
-            pagination.html('');
-
-            // Handle Previous and Next buttons
-            if (response.prev_page_url) {
-              pagination.append(`<li class="page-item"><a class="page-link" href="#" onclick="changePage(${response.current_page - 1})">Previous</a></li>`);
-            }
-
-            // Generate page number links
-            response.links.forEach(function(link) {
-              var activeClass = link.active ? 'active' : '';
-              pagination.append(`<li class="page-item ${activeClass}"><a class="page-link" href="#" onclick="changePage(${link.label})">${link.label}</a></li>`);
-            });
-
-            if (response.next_page_url) {
-              pagination.append(`<li class="page-item"><a class="page-link" href="#" onclick="changePage(${response.current_page + 1})">Next</a></li>`);
-            }
+            // Perbarui teks 'Showing ... of ...' dengan jumlah hasil pencarian
+            $('#showingText').text(response.showingText);
           }
         });
-      });
-    });
+      }
 
-    // Handling the change in "Records per page"
+      // Event handler saat mengetik di search input
+      $('#searchInput').on('keyup', fetchData);
+
+      // Event handler saat mengubah filter dropdown
+      $('#filterTim').on('change', fetchData);
+    });
+  </script>
+
+  <script>
     document.getElementById('recordsPerPage').addEventListener('change', function() {
       var recordsPerPage = this.value;
       var url = new URL(window.location.href);
-      url.searchParams.set('per_page', recordsPerPage); // Update parameter records per page in URL
-      window.location.href = url.toString(); // Redirect to the updated URL
-    });
 
-    // Function to handle page change in pagination
-    function changePage(pageNumber) {
-      var search = document.getElementById('searchInput').value;
-      var recordsPerPage = document.getElementById('recordsPerPage').value;
-      fetch(`/monitoring-kegiatan?search=${search}&per_page=${recordsPerPage}&page=${pageNumber}`, {
-          method: 'GET',
-          headers: {
-            'Accept': 'application/json',
-          },
-        })
-        .then(response => response.json())
-        .then(data => {
-          // Update table content with new data
-          updateTable(data);
-        });
-    }
+      // Update parameter recordsPerPage di URL
+      url.searchParams.set('recordsPerPage', recordsPerPage);
 
-    function updateTable(data) {
-      let tbody = document.querySelector('#dataTable tbody');
-      tbody.innerHTML = ''; // Clear existing table content
-
-      data.data.forEach((item, index) => {
-        let tr = document.createElement('tr');
-        tr.innerHTML = `
-        <td>${index + 1}</td>
-        <td>${item.timkerja.nama_tim || 'N/A'}</td>
-        <td><a href="/monitoring-kegiatan/${item.id}">${item.datakegiatan.nama_kegiatan}</a></td>
-        <td>${item.periode_kegiatan || '-'}</td>
-        <td>${item.target || '0'}</td>
-        <td>${item.realisasi || '0'}</td>
-        <td>${item.persentase}</td>
-        <td>${item.waktu_kegiatan || '-'}</td>
-        <td>${item.status}</td>
-      `;
-        tbody.appendChild(tr);
-      });
-
-      // Update information about the records
-      document.querySelector(".me-3 span").textContent = `Showing ${data.from}-${data.to} of ${data.total} records`;
-
-      // Update pagination links
-      let pagination = document.querySelector('.pagination');
-      pagination.innerHTML = '';
-
-      if (data.prev_page_url) {
-        let prevPage = document.createElement('li');
-        prevPage.className = 'page-item';
-        prevPage.innerHTML = `<a class="page-link" href="#" onclick="changePage(${data.current_page - 1})">Previous</a>`;
-        pagination.appendChild(prevPage);
+      // Ambil nilai filterTim dari dropdown dan update URL juga
+      var filterTim = document.getElementById('filterTim').value;
+      if (filterTim) {
+        url.searchParams.set('filter_tim', filterTim);
+      } else {
+        url.searchParams.delete('filter_tim');
       }
 
-      data.links.forEach(link => {
-        let pageItem = document.createElement('li');
-        pageItem.className = `page-item ${link.active ? 'active' : ''}`;
-        pageItem.innerHTML = `<a class="page-link" href="#" onclick="changePage(${link.label})">${link.label}</a>`;
-        pagination.appendChild(pageItem);
-      });
+      // Redirect ke URL baru dengan parameter lengkap
+      window.location.href = url.toString();
+    });
+  </script>
 
-      if (data.next_page_url) {
-        let nextPage = document.createElement('li');
-        nextPage.className = 'page-item';
-        nextPage.innerHTML = `<a class="page-link" href="#" onclick="changePage(${data.current_page + 1})">Next</a>`;
-        pagination.appendChild(nextPage);
+  <script>
+    window.routes = {
+      pendingVerifikasi: "{{ route('notifications.pending-verifikasi') }}"
+    };
+  </script>
+
+  <script>
+    setTimeout(() => {
+      const alertNode = document.querySelector('#alert-container .alert');
+      if (alertNode) {
+        // Bootstrap 5 way to close alert programmatically
+        let alert = new bootstrap.Alert(alertNode);
+        alert.close();
       }
-    }
+    }, 4000); // 4 detik
   </script>
-
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-  @if (session('success'))
-  <script>
-    Swal.fire({
-      icon: 'success',
-      text: "{{ session('success') }}",
-      showConfirmButton: true,
-      timer: 3000
-    });
-  </script>
-  @endif
-
-  @if ($errors->has('kode_kegiatan'))
-  <script>
-    Swal.fire({
-      icon: 'error',
-      text: 'Kode Kegiatan sudah digunakan, masukkan kode lain',
-      showConfirmButton: true,
-      timer: 3000
-    });
-  </script>
-  @endif
 
   <!-- Vendor JS Files -->
   <script src="{{ asset('assets/vendor/apexcharts/apexcharts.min.js') }}"></script>
@@ -398,6 +444,8 @@
 
   <!-- Template Main JS File -->
   <script src="assets/js/main.js"></script>
+
+  <script src="{{ asset('assets/js/notification.js') }}"></script>
 </body>
 
 </html>

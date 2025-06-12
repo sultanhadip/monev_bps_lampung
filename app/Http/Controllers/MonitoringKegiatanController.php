@@ -2,207 +2,314 @@
 
 namespace App\Http\Controllers;
 
+use App\Imports\MonitoringKegiatanImport;
+use App\Imports\MultiSheetImport;
 use App\Models\MonitoringKegiatan;
 use App\Models\SatuanKerja;
 use App\Models\TimKerja;
 use App\Models\DataKegiatan;
 use App\Models\target_realisasi_satker;
-use App\Models\update_target_realisasi;
 use Auth;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Log;
 use Carbon\Carbon;
+use Illuminate\Support\Facades\DB;
+use Maatwebsite\Excel\Facades\Excel;
 
 class MonitoringKegiatanController extends Controller
 {
     public function index(Request $request)
     {
-        // Cek apakah pengguna memiliki akses untuk melihat kolom action
-        $canAccessVerifikasi = Gate::any([
-            'isNeracaProv',
-            'isSosialProv',
-            'isProduksiProv',
-            'isDistribusiProv',
-            'isIPDSProv',
-            'isAdmin'
-        ]);
+        // ambil filter tahun dan bulan
+        $filterBulan = $request->input('filter_bulan');
+        $filterTahun = $request->input('filter_tahun');
 
-        // Ambil semua satuan kerja dan tim kerja yang memiliki kegiatan
-        $satuankerja = SatuanKerja::all();
-        $timkerja = TimKerja::whereHas('datakegiatan')->get(); // Hanya tim kerja yang memiliki kegiatan
+        // daftar tahun unik untuk dropdown
+        $years = MonitoringKegiatan::selectRaw('YEAR(waktu_mulai) as year')
+            ->distinct()
+            ->orderByDesc('year')
+            ->pluck('year');
 
-        // Ambil semua data kegiatan terkait tim kerja yang ada
-        $datakegiatan = DataKegiatan::all(); // Pastikan ini mengambil data kegiatan dari DB
+        // cek akses verifikasi
+        $canAccessVerifikasi = Gate::any(['isAdminProv', 'isAdmin']);
 
-        // Pagination setup
-        $perPage = $request->input('per_page', 10);  // Default 10 jika tidak ada input
-        $search = $request->input('search');  // Ambil kata kunci pencarian
+        // ambil data master
+        $satuankerja  = SatuanKerja::all();
+        $timkerja     = TimKerja::whereHas('datakegiatan')->get();
+        $datakegiatan = DataKegiatan::all();
 
-        // Ambil role pengguna saat ini
-        $role = Auth::user()->role;
+        // pagination & search
+        $perPage = $request->input('per_page', 10);
+        $search  = $request->input('search');
 
-        // Ambil data MonitoringKegiatan dengan relasi TimKerja dan DataKegiatan dan filter pencarian
-        $monitoringKegiatan = MonitoringKegiatan::with(['timkerja', 'datakegiatan', 'targetRealisasiSatker'])
-            ->when($search, function ($query) use ($search) {
-                return $query->whereHas('timkerja', function ($query) use ($search) {
-                    $query->where('nama_tim', 'like', '%' . $search . '%');
-                });
-            })
-            ->when($role == 'Produksi Provinsi' || $role == 'Produksi Kabupaten/Kota', function ($query) {
-                return $query->whereHas('timkerja', function ($query) {
-                    $query->where('nama_tim', 'like', '%Produksi%'); // Filter untuk tim Produksi
-                });
-            })
-            ->when($role == 'Distribusi Provinsi' || $role == 'Distribusi Kabupaten/Kota', function ($query) {
-                return $query->whereHas('timkerja', function ($query) {
-                    $query->where('nama_tim', 'like', '%Distribusi%'); // Filter untuk tim Distribusi
-                });
-            })
-            ->when($role == 'Neraca Provinsi' || $role == 'Neraca Kabupaten/Kota', function ($query) {
-                return $query->whereHas('timkerja', function ($query) {
-                    $query->where('nama_tim', 'like', '%Neraca%'); // Filter untuk tim Neraca
-                });
-            })
-            ->when($role == 'Sosial Provinsi' || $role == 'Sosial Kabupaten/Kota', function ($query) {
-                return $query->whereHas('timkerja', function ($query) {
-                    $query->where('nama_tim', 'like', '%Sosial%'); // Filter untuk tim Sosial
-                });
-            })
-            ->when($role == 'IPDS Provinsi' || $role == 'IPDS Kabupaten/Kota', function ($query) {
-                return $query->whereHas('timkerja', function ($query) {
-                    $query->where('nama_tim', 'like', '%IPDS%'); // Filter untuk tim IPDS
-                });
-            })
-            ->paginate($perPage);
+        // tim kerjanya user (operator/provinsi)
+        $timKerja = Auth::user()->timkerja
+            ? Auth::user()->timkerja->nama_tim
+            : null;
 
-        // Waktu saat ini
+        // bangun query utama
+        $qb = MonitoringKegiatan::with(['timkerja', 'datakegiatan', 'targetRealisasiSatker'])
+            ->when($search, function ($q) use ($search) {
+                $q->whereHas('timkerja', function ($q2) use ($search) {
+                    $q2->where('nama_tim', 'like', "%{$search}%");
+                })
+                    ->orWhereHas('datakegiatan', function ($q2) use ($search) {
+                        $q2->where('nama_kegiatan', 'like', "%{$search}%");
+                    });
+            })
+            ->when(Gate::allows('isOperator') || Gate::allows('isAdminProv'), function ($q) use ($timKerja) {
+                if ($timKerja) {
+                    $q->whereHas('timkerja', function ($q2) use ($timKerja) {
+                        $q2->where('nama_tim', 'like', "%{$timKerja}%");
+                    });
+                }
+            })
+            ->when($filterTahun, function ($q) use ($filterTahun) {
+                $q->whereYear('waktu_mulai', $filterTahun);
+            })
+            ->when($filterBulan, fn($q) => $q->whereMonth('waktu_mulai', $filterBulan));
+
+        // paginate & append query string
+        $monitoringKegiatan = $qb
+            ->paginate($perPage)
+            ->appends([
+                'search'       => $search,
+                'per_page'     => $perPage,
+                'filter_tahun' => $filterTahun,
+                'filter_bulan' => $filterBulan,
+            ]);
+
+        // properti bantu
         $currentDate = Carbon::now();
+        $bulanNames = [
+            'Januari',
+            'Februari',
+            'Maret',
+            'April',
+            'Mei',
+            'Juni',
+            'Juli',
+            'Agustus',
+            'September',
+            'Oktober',
+            'November',
+            'Desember'
+        ];
 
-        // Menambahkan informasi waktu kegiatan, status, target, realisasi, dan persentase
         foreach ($monitoringKegiatan as $item) {
-            // Menghitung waktu mulai dan selesai
-            $waktuMulai = Carbon::parse($item->waktu_mulai . ' 00:00:00');
-            $waktuSelesai = Carbon::parse($item->waktu_selesai . ' 23:59:59');
-            $item->waktu_kegiatan = $waktuMulai->format('d-m-Y') . ' - ' . $waktuSelesai->format('d-m-Y');
+            $mulai = Carbon::parse($item->waktu_mulai)->startOfDay();
+            $selesai = Carbon::parse($item->waktu_selesai)->endOfDay();
 
-            // Menentukan status
-            if ($currentDate->lessThan($waktuMulai)) {
+            $item->waktu_kegiatan = $mulai->format('d-m-Y') . ' - ' . $selesai->format('d-m-Y');
+            $item->waktu_selesai  = $selesai->format('d-m-Y');
+
+            if ($currentDate->lt($mulai)) {
                 $item->status = 'BELUM DIMULAI';
-            } elseif ($currentDate->greaterThan($waktuSelesai)) {
+            } elseif ($currentDate->gt($selesai)) {
                 $item->status = 'SELESAI';
             } else {
                 $item->status = 'ON PROGRESS';
             }
 
-            // Menghitung akumulasi target dari semua satuan kerja
-            $targetRealisasiSatker = target_realisasi_satker::with('updateRealisasi')
+            $trs = target_realisasi_satker::with('updateRealisasi')
                 ->where('id_monitoring_kegiatan', $item->id)
                 ->get();
 
-            $item->target = $targetRealisasiSatker->sum('target_satker');
+            $item->target = $trs->sum('target_satker');
 
-            // Menghitung akumulasi realisasi terbaru dari semua satuan kerja
-            $item->realisasi = $targetRealisasiSatker->sum(function ($satker) {
-                return $satker->updateRealisasi->realisasi_satker ?? 0;
+            $item->realisasi = $trs->sum(function ($satker) {
+                $u = $satker->updateRealisasi()
+                    ->where('status', 'diterima')
+                    ->latest()
+                    ->first();
+                return $u ? $u->realisasi_satker : 0;
             });
 
-            // Menghitung persentase realisasi
             $item->persentase = $item->target > 0
-                ? round(($item->realisasi / $item->target) * 100, 2) . '%'
+                ? round($item->realisasi / $item->target * 100, 2) . '%'
                 : '0%';
 
-            // Menentukan periode kegiatan
-            if ($item->tahun_kegiatan) {
-                if ($item->bulan) {
-                    $item->periode_kegiatan = $item->bulan . ' - ' . $item->tahun_kegiatan;
-                } elseif ($item->triwulan) {
-                    $item->periode_kegiatan = 'Triwulan ' . $item->triwulan . ' - ' . $item->tahun_kegiatan;
-                } elseif ($item->semester) {
-                    $item->periode_kegiatan = 'Semester ' . $item->semester . ' - ' . $item->tahun_kegiatan;
-                } else {
-                    $item->periode_kegiatan = $item->tahun_kegiatan;
-                }
+            $dt = Carbon::parse($item->waktu_mulai);
+            $mIdx = $dt->month - 1;
+            $yr = $dt->year;
+            $tipe = $item->datakegiatan->periode_kegiatan ?? 'Tahunan';
+
+            switch (strtolower($tipe)) {
+                case 'bulanan':
+                    $item->periode_kegiatan = $bulanNames[$mIdx] . " {$yr}";
+                    break;
+                case 'triwulan':
+                    $q = ceil(($mIdx + 1) / 3);
+                    $item->periode_kegiatan = "Triwulan {$q} {$yr}";
+                    break;
+                case 'semesteran':
+                    $s = ($mIdx < 6) ? 'I' : 'II';
+                    $item->periode_kegiatan = "Semester {$s} {$yr}";
+                    break;
+                default:
+                    $item->periode_kegiatan = (string)$yr;
             }
         }
 
-        // Mengirimkan data ke view
-        return view('monitoring-kegiatan', compact('satuankerja', 'timkerja', 'datakegiatan', 'monitoringKegiatan', 'canAccessVerifikasi'));
+        if ($request->ajax()) {
+            // Pastikan variabel master tetap diambil
+            $timkerja = TimKerja::whereHas('datakegiatan')->get();
+            $datakegiatan = DataKegiatan::all();
+            $satuankerja = SatuanKerja::all();  // <== Tambahkan ini!
+
+            $tableHtml = view('monitoringkegiatan.table', compact(
+                'monitoringKegiatan',
+                'canAccessVerifikasi',
+                'timkerja',
+                'datakegiatan',
+                'satuankerja'  // <== Kirim ke view juga
+            ))->render();
+
+            $paginationHtml = view('monitoringkegiatan.pagination', compact('monitoringKegiatan'))->render();
+
+            $showingText = 'Showing ' . $monitoringKegiatan->firstItem() . '-' . $monitoringKegiatan->lastItem() . ' of ' . $monitoringKegiatan->total() . ' records';
+
+            return response()->json([
+                'table' => $tableHtml,
+                'paginationHtml' => $paginationHtml,
+                'showingText' => $showingText,
+            ]);
+        }
+
+        // Render view full untuk request biasa
+        return view('monitoring-kegiatan', compact(
+            'satuankerja',
+            'timkerja',
+            'datakegiatan',
+            'monitoringKegiatan',
+            'canAccessVerifikasi',
+            'years',
+            'filterTahun',
+            'filterBulan'
+        ));
     }
 
     public function getKegiatanByTim(Request $request)
     {
-        $tim_id = $request->input('tim_id'); // Ambil ID tim yang dipilih
+        $tim_id = $request->input('tim_id');
 
         // Ambil data kegiatan berdasarkan id_tim_kerja
         $kegiatan = DataKegiatan::where('id_tim_kerja', $tim_id)->get();
 
-        // Debugging: Log ID tim yang dipilih dan data kegiatan yang diterima (ubah menjadi array)
+        // Debugging: Log ID tim yang dipilih dan data kegiatan yang diterima
         Log::info('Tim ID:', ['tim_id' => $tim_id]);
-        Log::info('Kegiatan yang terkait dengan tim ini:', $kegiatan->toArray()); // Konversi ke array
+        Log::info('Kegiatan yang terkait dengan tim ini:', $kegiatan->toArray());
 
-        // Jika tidak ada kegiatan untuk tim ini
         if ($kegiatan->isEmpty()) {
             return response()->json(['message' => 'Tidak ada kegiatan untuk tim ini']);
         }
 
-        // Mengembalikan data kegiatan dalam format JSON
         return response()->json($kegiatan);
     }
 
     public function store(Request $request)
     {
-        try {
-            // Validasi input dari form
-            $validatedData = $request->validate([
-                'kode_tim' => 'required',
-                'kode_kegiatan' => 'required',
-                'tahun_kegiatan' => 'required',
-                'waktu_mulai' => 'required',
-                'waktu_selesai' => 'required',
-                'satuan_kerja' => 'required|array',
-                'target_sampel' => 'required|array', // Pastikan target_sampel adalah array
-                'id_data_kegiatan' => 'required',
-                'bulan' => 'nullable',
-                'triwulan' => 'nullable',
-                'semester' => 'nullable',
-            ]);
+        $validated = $request->validate([
+            'kode_tim'       => 'required',
+            'kode_kegiatan'  => 'required',
+            'waktu_mulai'    => 'required|date',
+            'waktu_selesai'  => 'required|date|after_or_equal:waktu_mulai',
+            'satuan_kerja'   => 'required|array',
+            'target_sampel'  => 'required|array',
+        ]);
 
-            // Simpan data Monitoring Kegiatan
-            $monitoringKegiatan = MonitoringKegiatan::create([
-                'kode_tim' => $validatedData['kode_tim'],
-                'kode_kegiatan' => $validatedData['kode_kegiatan'],
-                'id_data_kegiatan' => $validatedData['id_data_kegiatan'],
-                'tahun_kegiatan' => $validatedData['tahun_kegiatan'],
-                'bulan' => $validatedData['bulan'] ?? null,
-                'triwulan' => $validatedData['triwulan'] ?? null,
-                'semester' => $validatedData['semester'] ?? null,
-                'waktu_mulai' => $validatedData['waktu_mulai'],
-                'waktu_selesai' => $validatedData['waktu_selesai'],
+        // Definisi nama bulan untuk label duplikat
+        $bulanNames = [
+            'Januari',
+            'Februari',
+            'Maret',
+            'April',
+            'Mei',
+            'Juni',
+            'Juli',
+            'Agustus',
+            'September',
+            'Oktober',
+            'November',
+            'Desember'
+        ];
+
+        // Ambil tipe periode dari DataKegiatan
+        $dataKeg = DataKegiatan::findOrFail($validated['kode_kegiatan']);
+        $tipe   = strtolower($dataKeg->periode_kegiatan);
+        $start  = Carbon::parse($validated['waktu_mulai']);
+        $month  = $start->month;
+        $year   = $start->year;
+
+        // Cek duplikat dengan filter kode_kegiatan
+        switch ($tipe) {
+            case 'bulanan':
+                $exists = MonitoringKegiatan::whereMonth('waktu_mulai', $month)
+                    ->whereYear('waktu_mulai', $year)
+                    ->where('kode_kegiatan', $dataKeg->id)  // **Perbaikan di sini**
+                    ->exists();
+                $label = "{$bulanNames[$month - 1]} {$year}";
+                break;
+            case 'triwulan':
+                $q = ceil($month / 3);
+                $range = [($q - 1) * 3 + 1, $q * 3];
+                $exists = MonitoringKegiatan::whereYear('waktu_mulai', $year)
+                    ->whereBetween(DB::raw('MONTH(waktu_mulai)'), $range)
+                    ->where('kode_kegiatan', $dataKeg->id)  // **Perbaikan di sini**
+                    ->exists();
+                $label = "Triwulan {$q} {$year}";
+                break;
+            case 'semesteran':
+                if ($month <= 6) {
+                    $range = [1, 6];
+                    $sem = 'I';
+                } else {
+                    $range = [7, 12];
+                    $sem = 'II';
+                }
+                $exists = MonitoringKegiatan::whereYear('waktu_mulai', $year)
+                    ->whereBetween(DB::raw('MONTH(waktu_mulai)'), $range)
+                    ->where('kode_kegiatan', $dataKeg->id)  // **Perbaikan di sini**
+                    ->exists();
+                $label = "Semester {$sem} {$year}";
+                break;
+            default: // tahunan
+                $exists = MonitoringKegiatan::whereYear('waktu_mulai', $year)
+                    ->where('kode_kegiatan', $dataKeg->id)  // **Perbaikan di sini**
+                    ->exists();
+                $label = (string)$year;
+        }
+
+        if (!empty($exists)) {
+            return redirect()->route('monitoring-kegiatan')
+                ->with('error', "Kegiatan untuk periode {$label} sudah ada.");
+        }
+
+        // Simpan data
+        try {
+            $mk = MonitoringKegiatan::create([
+                'kode_tim'       => $validated['kode_tim'],
+                'kode_kegiatan'  => $validated['kode_kegiatan'],
+                'waktu_mulai'    => $validated['waktu_mulai'],
+                'waktu_selesai'  => $validated['waktu_selesai'],
                 'realisasi_kegiatan' => 0,
             ]);
 
-            // Simpan target untuk setiap satuan kerja yang dipilih
-            foreach ($validatedData['satuan_kerja'] as $satuanKerjaId) {
-                $targetRealisasiSatker = new target_realisasi_satker();
-                $targetRealisasiSatker->id_monitoring_kegiatan = $monitoringKegiatan->id;
-                $targetRealisasiSatker->kode_satuan_kerja = $satuanKerjaId;
-                // Ambil nilai target sampel untuk satuan kerja yang dipilih
-                $targetRealisasiSatker->target_satker = $validatedData['target_sampel'][$satuanKerjaId];
-                $targetRealisasiSatker->save(); // Simpan target untuk satuan kerja ini
-
-                $updateRealisasiSatker = new update_target_realisasi();
-                $updateRealisasiSatker->id_target_realisasi = $targetRealisasiSatker->id;
-                $updateRealisasiSatker->realisasi_satker = 0;
-                $updateRealisasiSatker->bukti_dukung_realisasi = null;
-                $updateRealisasiSatker->keterangan = null;
-                $updateRealisasiSatker->save();
+            foreach ($validated['satuan_kerja'] as $idSatker) {
+                target_realisasi_satker::create([
+                    'id_monitoring_kegiatan' => $mk->id,
+                    'kode_satuan_kerja'      => $idSatker,
+                    'target_satker'          => $validated['target_sampel'][$idSatker] ?? 0,
+                ]);
             }
         } catch (\Throwable $th) {
-            Log::error($th);
+            Log::error('Error saat menyimpan Monitoring Kegiatan', ['error' => $th->getMessage()]);
+            return back()->with('error', 'Gagal menyimpan data');
         }
 
-        return redirect()->route('monitoring-kegiatan');
+        return redirect()->route('monitoring-kegiatan')
+            ->with('success', 'Data berhasil ditambahkan!');
     }
 
     public function update(Request $request, $id)
@@ -211,57 +318,36 @@ class MonitoringKegiatanController extends Controller
             $validatedData = $request->validate([
                 'kode_tim' => 'required',
                 'kode_kegiatan' => 'required',
-                'tahun_kegiatan' => 'required',
                 'waktu_mulai' => 'required|date',
                 'waktu_selesai' => 'required|date|after_or_equal:waktu_mulai',
-                'satuan_kerja' => 'required|array',
                 'target_sampel' => 'required|array',
-                'bulan' => 'nullable',
-                'triwulan' => 'nullable',
-                'semester' => 'nullable'
             ]);
 
             $monitoringKegiatan = MonitoringKegiatan::findOrFail($id);
-
             $monitoringKegiatan->update([
                 'kode_tim' => $validatedData['kode_tim'],
                 'kode_kegiatan' => $validatedData['kode_kegiatan'],
-                'tahun_kegiatan' => $validatedData['tahun_kegiatan'],
-                'bulan' => $validatedData['bulan'] ?? null,
-                'triwulan' => $validatedData['triwulan'] ?? null,
-                'semester' => $validatedData['semester'] ?? null,
                 'waktu_mulai' => $validatedData['waktu_mulai'],
-                'waktu_selesai' => $validatedData['waktu_selesai']
+                'waktu_selesai' => $validatedData['waktu_selesai'],
             ]);
 
-            // Update atau tambahkan target untuk setiap satuan kerja yang dipilih
-            foreach ($validatedData['satuan_kerja'] as $satuanKerjaId) {
-                // Update data target_realisasi_satker yang sudah ada
-                $targetRealisasiSatker = target_realisasi_satker::updateOrCreate(
-                    [
-                        'kode_satuan_kerja' => $satuanKerjaId,
-                        'id_monitoring_kegiatan' => $monitoringKegiatan->id,
-                    ],
-                    [
-                        'target_satker' => $validatedData['target_sampel'][$satuanKerjaId],
-                    ]
-                );
-
-                update_target_realisasi::updateOrCreate(
-                    [
-                        'id_target_realisasi' => $targetRealisasiSatker->id,
-                    ],
-                    [
-                        'realisasi_satker' => $targetRealisasiSatker->realisasi_satker ?? 0,
-                        'bukti_dukung_realisasi' => null,
-                        'keterangan' => null,
-                    ]
-                );
+            foreach ($validatedData['target_sampel'] as $satuanKerjaId => $target) {
+                if ($target > 0) {
+                    target_realisasi_satker::updateOrCreate(
+                        [
+                            'id_monitoring_kegiatan' => $monitoringKegiatan->id,
+                            'kode_satuan_kerja' => $satuanKerjaId,
+                        ],
+                        [
+                            'target_satker' => $target,
+                        ]
+                    );
+                }
             }
 
             return redirect()->route('monitoring-kegiatan')->with('success', 'Data berhasil diperbarui');
         } catch (\Throwable $th) {
-            Log::error($th);
+            Log::error('Error saat memperbarui Monitoring Kegiatan', ['error' => $th->getMessage()]);
             return redirect()->route('monitoring-kegiatan')->with('error', 'Terjadi kesalahan saat memperbarui data');
         }
     }
@@ -272,5 +358,71 @@ class MonitoringKegiatanController extends Controller
         $monitoringkegiatan->delete();
 
         return redirect()->route('monitoring-kegiatan')->with('success', 'Kegiatan berhasil dihapus');
+    }
+
+    public function downloadFormat()
+    {
+        $filePath = base_path('app/Imports/format_monitoring_kegiatan.xlsx');
+        return response()->download($filePath);
+    }
+
+    public function import(Request $request)
+    {
+        $request->validate([
+            'excel_file' => 'required|mimes:xls,xlsx',
+        ]);
+
+        try {
+            // Buat instance import agar bisa akses hasil import
+            $import = new MultiSheetImport();  // Ganti dengan MonitoringKegiatanImport jika perlu
+            Excel::import($import, $request->file('excel_file'));
+
+            // Ambil data hasil import
+            $successCount = (method_exists($import, 'getSuccessCount') && $import->getSuccessCount() !== null)
+                ? $import->getSuccessCount()
+                : 0;
+            $duplicateRows = (method_exists($import, 'getDuplicateRows'))
+                ? $import->getDuplicateRows()
+                : [];
+
+            // Pesan sukses hanya jika ada yang berhasil disimpan
+            $successMsg = $successCount > 0
+                ? "{$successCount} kegiatan berhasil disimpan."
+                : '';
+
+            // Siapkan redirect
+            $redirect = redirect()->route('monitoring-kegiatan');
+
+            // Cek jika semua baris duplikat
+            if (count($duplicateRows) > 0 && $successCount == 0) {
+                $lines = array_map(function ($row) {
+                    return "- Kegiatan {$row['nama_kegiatan']} pada periode {$row['periode']}";
+                }, $duplicateRows);
+                $duplicateMsg = "Semua kegiatan sudah ditambahkan\n" . implode("\n", $lines);
+
+                // Hanya tampilkan pesan warning duplikat
+                return $redirect->with('duplicate_errors', $duplicateMsg);
+            }
+
+            // Jika ada data yang berhasil disimpan
+            if ($successCount > 0) {
+                // Menambahkan pesan sukses jika ada yang berhasil disimpan
+                $redirect = $redirect->with('success', $successMsg);
+            }
+
+            // Tampilkan pesan duplikat jika ada
+            if (count($duplicateRows) > 0) {
+                $lines = array_map(function ($row) {
+                    return "- Kegiatan {$row['nama_kegiatan']} pada periode {$row['periode']}";
+                }, $duplicateRows);
+                $duplicateMsg = "Kegiatan duplikat ditemukan:\n" . implode("\n", $lines);
+                $redirect = $redirect->with('duplicate_errors', $duplicateMsg);
+            }
+
+            return $redirect;
+        } catch (\Exception $e) {
+            Log::error('Terjadi kesalahan saat mengimpor data Excel: ' . $e->getMessage());
+            return redirect()->route('monitoring-kegiatan')->with('error', 'Terjadi kesalahan saat mengimpor data!');
+        }
     }
 }

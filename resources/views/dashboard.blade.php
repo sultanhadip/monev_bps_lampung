@@ -56,226 +56,353 @@
     <!-- End Page Title -->
 
     <section class="section dashboard">
+      <!-- Tentang Sistem -->
+      <div class="col-12">
+        <div class="card">
+          <div class="card-body">
+            <h5 class="card-title mb-0">
+              <i class="bi bi-info-circle me-1"></i> Tentang Montify
+            </h5>
+            <!-- Teks yang sejajar dengan padding kiri, jarak lebih dekat -->
+            <p class="custom-text ps-4 fs-8 small mb-0">
+              <b>MONTIFY</b> merupakan sistem informasi berbasis website yang digunakan untuk melakukan monitoring dan evaluasi kegiatan statistik di lingkungan BPS Provinsi Lampung.
+            </p>
+          </div>
+        </div>
+      </div>
+      <!-- End Tentang Sistem -->
+
+      <!-- Teks dan Garis dalam baris yang sama menggunakan Bootstrap -->
+      <div class="d-flex align-items-center mb-3">
+        <h5 class="fs-6 mb-0 fw-bold" style="color: #899bbd;">Ringkasan Kegiatan</h5>
+        <!-- Garis pemisah di sebelah kanan -->
+        <hr class="flex-grow-1 mx-2 border border-primary" style="border-width: 2px;">
+      </div>
+
+      <!-- Ringkasan Informasi Kegiatan -->
       <div class="row">
         <!-- Left side columns -->
-        <div class="col-lg-8">
+        <div class="col-lg-12">
           <div class="row text-center">
-            <!-- Target Card -->
+
+            <!-- Total Kegiatan Survey Card -->
             <div class="col-xxl-3 col-md-3 d-flex">
-              <div class="card info-card sales-card flex-fill">
-                <div class="card-body p-2"> <!-- Padding dikurangi menjadi p-2 -->
-                  <p class="card-title fs-6 small">Target</p>
-                  <div class="d-flex align-items-center justify-content-center">
-                    <div class="text-center">
-                      <h6 class="fs-5" id="target">-</h6>
-                    </div>
+              <div class="card info-card sales-card flex-fill rounded-4">
+                <div class="card-body p-3 d-flex flex-column align-items-center"> <!-- Gunakan align-items-center untuk memusatkan semua elemen -->
+                  <div class="d-flex align-items-center justify-content-center mb-2"> <!-- Jarak ikon dengan teks lebih rapat -->
+                    <i class="bi bi-clipboard-check fs-2 text-primary"></i> <!-- Ikon ukuran lebih kecil dan warna biru -->
                   </div>
+                  <p class="card-title fs-6 small mb-1 text-center">Total Kegiatan Survei</p>
+                  <h6 class="fs-4 fw-bold mb-0" id="total_kegiatan">{{ $totalKegiatan }}</h6> <!-- Angka lebih besar, tanpa margin bawah -->
                 </div>
               </div>
             </div>
+            <!-- End -->
 
-            <!-- Realisasi Card -->
+            <!-- Total Kegiatan yang Berlangsung di Bulan Ini -->
             <div class="col-xxl-3 col-md-3 d-flex">
-              <div class="card info-card sales-card flex-fill">
-                <div class="card-body p-2"> <!-- Padding dikurangi menjadi p-2 -->
-                  <p class="card-title fs-6 small">Realisasi</p>
-                  <div class="d-flex align-items-center justify-content-center">
-                    <div class="text-center">
-                      <h6 class="fs-5" id="realisasi">-</h6>
-                    </div>
+              <div class="card info-card sales-card flex-fill rounded-4">
+                <div class="card-body p-3 d-flex flex-column align-items-center"> <!-- Gunakan align-items-center untuk memusatkan semua elemen -->
+                  <div class="d-flex align-items-center justify-content-center mb-2"> <!-- Jarak ikon dengan teks lebih rapat -->
+                    <i class="bi bi-calendar-event fs-2 text-success"></i> <!-- Ikon ukuran lebih kecil dan warna hijau -->
                   </div>
+                  <p class="card-title fs-6 small mb-1 text-center">
+                    Total Kegiatan Bulan {{ \Carbon\Carbon::now()->translatedFormat('F') }}
+                  </p>
+                  <h6 class="fs-4 fw-bold mb-0" id="total_kegiatan_bulan">{{ $totalKegiatanBulan }}</h6>
                 </div>
               </div>
             </div>
+            <!-- End -->
 
-            <!-- % Tertinggi Card -->
+            <!-- Card Total Target Sampel Bulan -->
             <div class="col-xxl-3 col-md-3 d-flex">
-              <div class="card info-card sales-card flex-fill">
-                <div class="card-body p-2"> <!-- Padding dikurangi menjadi p-2 -->
-                  <p class="card-title fs-6 small">% Tertinggi</p>
-                  <div class="d-flex align-items-center justify-content-center">
-                    <div class="text-center">
-                      <h6 class="fs-5" id="tertinggi">-</h6>
-                    </div>
+              <div class="card info-card sales-card flex-fill rounded-4">
+                <div class="card-body p-3 d-flex flex-column align-items-center"> <!-- Gunakan align-items-center untuk memusatkan semua elemen -->
+                  <div class="d-flex align-items-center justify-content-center mb-2"> <!-- Jarak ikon dengan teks lebih rapat -->
+                    <i class="bi bi-clipboard-data fs-2 text-warning"></i> <!-- Ikon ukuran lebih kecil dan warna kuning -->
                   </div>
-                  <span class="text-muted small fs-7" id="tertinggi-nama">-</span>
+                  <p class="card-title fs-6 small mb-1 text-center">
+                    Total Target Sampel Bulan {{ \Carbon\Carbon::now()->translatedFormat('F') }}
+                  </p>
+                  <h6 class="fs-4 fw-bold mb-0" id="target_sampel">{{ $totalTargetSampel }}</h6>
                 </div>
               </div>
             </div>
+            <!-- End -->
 
-            <!-- % Terendah Card -->
+            <!-- Card Total Realisasi Sampel Bulan -->
             <div class="col-xxl-3 col-md-3 d-flex">
-              <div class="card info-card sales-card flex-fill">
-                <div class="card-body p-2"> <!-- Padding dikurangi menjadi p-2 -->
-                  <p class="card-title fs-6 small">% Terendah</p>
-                  <div class="d-flex align-items-center justify-content-center">
-                    <div class="text-center">
-                      <h6 class="fs-5" id="terendah">-</h6>
-                    </div>
+              <div class="card info-card sales-card flex-fill rounded-4">
+                <div class="card-body p-3 d-flex flex-column align-items-center"> <!-- Gunakan align-items-center untuk memusatkan semua elemen -->
+                  <div class="d-flex align-items-center justify-content-center mb-2"> <!-- Jarak ikon dengan teks lebih rapat -->
+                    <i class="bi bi-check-circle fs-2 text-success"></i> <!-- Ikon ukuran lebih kecil dan warna hijau -->
                   </div>
-                  <span class="text-muted small fs-7" id="terendah-nama">-</span>
+                  <p class="card-title fs-6 small mb-1 text-center">
+                    Total Realisasi Sampel Bulan {{ \Carbon\Carbon::now()->translatedFormat('F') }}
+                  </p>
+                  <h6 class="fs-4 fw-bold mb-0" id="total_realisasi">{{ $totalRealisasiSampel }}</h6>
                 </div>
               </div>
             </div>
+            <!-- End -->
 
-            <div class="col-lg-12">
-              <div class="card">
-                <div class="card-body">
-                  <h5 class="card-title">Realisasi Menurut Satuan Kerja</h5>
+          </div>
+        </div>
+        <!-- End Ringkasan Informasi Kegiatan -->
 
-                  <!-- Column Chart -->
-                  <div id="columnChart"></div>
+        <div class="d-flex align-items-center mb-3">
+          <h5 class="fs-6 mb-0 fw-bold" style="color: #899bbd;">Monitoring Kegiatan Survei</h5>
+          <!-- Garis pemisah di sebelah kanan -->
+          <hr class="flex-grow-1 mx-2 border border-primary" style="border-width: 2px;">
+        </div>
 
-                  <script>
-                    // Initialize chart with no data
-                    let chart = new ApexCharts(document.querySelector("#columnChart"), {
-                      series: [{
-                        name: "Target",
-                        data: [],
-                      }, {
-                        name: "Realisasi",
-                        data: [],
-                      }],
-                      chart: {
-                        type: "bar",
-                        height: 350,
-                      },
-                      xaxis: {
-                        categories: [],
-                        title: {
-                          text: "Satuan Kerja",
-                        },
-                      },
-                      yaxis: {
-                        title: {
-                          text: "Sampel",
-                        },
-                      },
-                    });
+        <!-- Grafik Realisasi Kegiatan -->
+        <div class="row">
 
-                    chart.render();
+          <!-- Right side columns -->
+          <div class="col-lg-4">
+            <!-- Filter Form -->
+            <div class="card rounded-4">
+              <div class="card-header">
+                <h5 class="mb-0"><i class="bi bi-funnel-fill"></i> Filter</h5>
+              </div>
+              <div class="card-body">
+                <form id="filter-form">
+                  <!-- Dropdown Tim -->
+                  <div class="mb-3">
+                    <label for="tim" class="form-label">Pilih Tim</label>
+                    <select class="form-select" id="tim" name="tim">
+                      <option value="">Pilih Tim</option>
+                      @foreach ($timNames as $id => $namaTim)
+                      <option value="{{ $id }}">{{ $namaTim }}</option>
+                      @endforeach
+                    </select>
+                  </div>
 
-                    // Function to update chart after data is retrieved
-                    function updateChart(targetData, realisasiData, categories) {
-                      chart.updateOptions({
+                  <!-- Dropdown Objek -->
+                  <div class="mb-3">
+                    <label for="objek" class="form-label">Pilih Objek</label>
+                    <select class="form-select" id="objek" name="objek">
+                      <option value="">Pilih Objek</option>
+                    </select>
+                  </div>
+
+                  <!-- Dropdown Periode -->
+                  <div class="mb-3">
+                    <label for="periode" class="form-label">Pilih Periode</label>
+                    <select class="form-select" id="periode" name="periode">
+                      <option value="">Pilih Periode</option>
+                    </select>
+                  </div>
+
+                  <!-- Dropdown Nama Kegiatan -->
+                  <div class="mb-3">
+                    <label for="nama_kegiatan" class="form-label">Pilih Nama Kegiatan</label>
+                    <select class="form-select" id="nama_kegiatan" name="nama_kegiatan">
+                      <option value="">Pilih Kegiatan</option>
+                      @foreach ($monitoringData as $data)
+                      <option value="{{ $data->kode_kegiatan }}">{{ $data->nama_kegiatan }}</option>
+                      @endforeach
+                    </select>
+                  </div>
+
+                  <!-- Dropdown Waktu Kegiatan -->
+                  <div class="mb-3" id="waktu-kegiatan-container" style="display: none;">
+                    <label for="waktu_kegiatan" class="form-label">Pilih Waktu Kegiatan</label>
+                    <select class="form-select" id="waktu_kegiatan" name="waktu_kegiatan">
+                      <option value="">Pilih Waktu Kegiatan</option>
+                    </select>
+                  </div>
+
+                  <div class="d-grid">
+                    <button type="button" id="btn-tampilkan" class="btn btn-primary">Tampilkan</button>
+                  </div>
+                </form>
+              </div>
+            </div>
+            <!-- End Filter -->
+          </div>
+          <!-- End Right side columns -->
+
+          <!-- Left side columns -->
+          <div class="col-lg-8">
+            <div class="row text-center">
+
+              <!-- Target Card -->
+              <div class="col-xxl-3 col-md-3 d-flex">
+                <div class="card info-card sales-card flex-fill rounded-4">
+                  <div class="card-body p-3 text-center"> <!-- Padding lebih besar dan text-center untuk meratakan teks -->
+                    <div class="d-flex justify-content-center mb-1 mt-2"> <!-- Menurunkan ikon lebih dekat ke teks -->
+                      <i class="bi bi-tag fs-3 text-primary"></i> <!-- Ikon lebih besar dengan margin bawah kecil -->
+                    </div>
+                    <p class="card-title fs-6 mb-1">Target</p> <!-- Mengurangi margin bawah -->
+                    <h6 id="target" class="fs-4 fw-bold mb-0">-</h6> <!-- Mengurangi margin bawah -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- Realisasi Card -->
+              <div class="col-xxl-3 col-md-3 d-flex">
+                <div class="card info-card sales-card flex-fill rounded-4">
+                  <div class="card-body p-3 text-center"> <!-- Padding lebih besar dan text-center untuk meratakan teks -->
+                    <div class="d-flex justify-content-center mb-1 mt-2"> <!-- Menurunkan ikon lebih dekat ke teks -->
+                      <i class="bi bi-check-circle fs-3 text-primary"></i> <!-- Ikon lebih besar dengan margin bawah kecil -->
+                    </div>
+                    <p class="card-title fs-6 mb-1">Realisasi</p> <!-- Mengurangi margin bawah -->
+                    <h6 id="realisasi" class="fs-4 fw-bold mb-0">-</h6> <!-- Mengurangi margin bawah -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- % Tertinggi Card -->
+              <div class="col-xxl-3 col-md-3 d-flex">
+                <div class="card info-card sales-card flex-fill rounded-4">
+                  <div class="card-body p-3 text-center"> <!-- Padding lebih besar dan text-center untuk meratakan teks -->
+                    <div class="d-flex justify-content-center mb-1 mt-2"> <!-- Menurunkan ikon lebih dekat ke teks -->
+                      <i class="bi bi-arrow-up-circle fs-3 text-primary"></i> <!-- Ikon lebih besar dengan margin bawah kecil -->
+                    </div>
+                    <p class="card-title fs-6 mb-1">% Tertinggi</p> <!-- Mengurangi margin bawah -->
+                    <h6 id="tertinggi" class="fs-4 fw-bold mb-0">-</h6> <!-- Mengurangi margin bawah -->
+                    <span class="text-muted small fs-7" id="tertinggi-nama">-</span> <!-- Teks kecil di bawah angka -->
+                  </div>
+                </div>
+              </div>
+
+              <!-- % Terendah Card -->
+              <div class="col-xxl-3 col-md-3 d-flex">
+                <div class="card info-card sales-card flex-fill rounded-4">
+                  <div class="card-body p-3 text-center"> <!-- Padding lebih besar dan text-center untuk meratakan teks -->
+                    <div class="d-flex justify-content-center mb-1 mt-2"> <!-- Menurunkan ikon lebih dekat ke teks -->
+                      <i class="bi bi-arrow-down-circle fs-3 text-primary"></i> <!-- Ikon lebih besar dengan margin bawah kecil -->
+                    </div>
+                    <p class="card-title fs-6 mb-1">% Terendah</p> <!-- Mengurangi margin bawah -->
+                    <h6 id="terendah" class="fs-4 fw-bold mb-0">-</h6> <!-- Mengurangi margin bawah -->
+                    <span class="text-muted small fs-7" id="terendah-nama">-</span> <!-- Teks kecil di bawah angka -->
+                  </div>
+                </div>
+              </div>
+
+              <div class="col-lg-12">
+                <div class="card rounded-4">
+                  <div class="card-body">
+                    <h5 class="card-title">Realisasi Pencacahan Menurut Satuan Kerja</h5>
+
+                    <!-- Column Chart -->
+                    <div id="columnChart"></div>
+
+                    <!-- Legend Manual -->
+                    <div id="chartLegend" class="d-none justify-content-center gap-4 mt-3">
+                      <div class="legend-item d-flex align-items-center">
+                        <span class="legend-color" style="background:#2196F3;"></span>
+                        <span class="small fs-7">Target</span>
+                      </div>
+                      <div class="legend-item d-flex align-items-center">
+                        <span class="legend-color" style="background:#FF0000;"></span>
+                        <span class="small fs-7">Capaian ≤50%</span>
+                      </div>
+                      <div class="legend-item d-flex align-items-center">
+                        <span class="legend-color" style="background:#FFEB3B;"></span>
+                        <span class="small fs-7">Capaian ≤75%</span>
+                      </div>
+                      <div class="legend-item d-flex align-items-center">
+                        <span class="legend-color" style="background:#4CAF50;"></span>
+                        <span class="small fs-7">Capaian &gt;75%</span>
+                      </div>
+                      <div class="legend-item d-flex align-items-center">
+                        <span class="legend-color" style="background:#388E3C;"></span>
+                        <span class="small fs-7">Capaian 100%</span>
+                      </div>
+                    </div>
+
+                    <script>
+                      // Initialize chart with no data
+                      let chart = new ApexCharts(document.querySelector("#columnChart"), {
                         series: [{
                           name: "Target",
-                          data: targetData,
+                          data: [],
                         }, {
                           name: "Realisasi",
-                          data: realisasiData,
+                          data: [],
                         }],
+                        chart: {
+                          type: "bar",
+                          height: 350,
+                        },
                         xaxis: {
-                          categories: categories,
-                        }
+                          categories: [],
+                          title: {
+                            text: "Satuan Kerja",
+                          },
+                        },
+                        yaxis: {
+                          title: {
+                            text: "Sampel",
+                          },
+                        },
                       });
-                    }
 
-                    $('#btn-tampilkan').click(function() {
-                      const kodeKegiatan = $('#nama_kegiatan').val();
-                      if (!kodeKegiatan) {
-                        alert('Silakan pilih kegiatan yang valid.');
-                        return;
+                      chart.render();
+
+                      // Function to update chart after data is retrieved
+                      function updateChart(targetData, realisasiData, categories) {
+                        chart.updateOptions({
+                          series: [{
+                            name: "Target",
+                            data: targetData,
+                          }, {
+                            name: "Realisasi",
+                            data: realisasiData,
+                          }],
+                          xaxis: {
+                            categories: categories,
+                          }
+                        });
                       }
-                      const waktuKegiatan = $('#waktu_kegiatan').val();
 
-                      $.ajax({
-                        url: '{{ route("get.filteredData") }}',
-                        type: 'GET',
-                        data: {
-                          kode_kegiatan: kodeKegiatan,
-                          waktu_kegiatan: waktuKegiatan,
-                        },
-                        success: function(response) {
-                          // Update data in UI
-                          $('#target').text(response.target || '-');
-                          $('#realisasi').text(response.realisasi || '-');
-                          $('#tertinggi').text(response.tertinggi.persentase || '-');
-                          $('#tertinggi-nama').text(response.tertinggi.nama || '-');
-                          $('#terendah').text(response.terendah.persentase || '-');
-                          $('#terendah-nama').text(response.terendah.nama || '-');
+                      $('#btn-tampilkan').click(function() {
+                        const kodeKegiatan = $('#nama_kegiatan').val();
+                        if (!kodeKegiatan) {
+                          alert('Silakan pilih kegiatan yang valid.');
+                          return;
+                        }
+                        const waktuKegiatan = $('#waktu_kegiatan').val();
 
-                          // Update chart with new data
-                          updateChart(response.chartTargetData, response.chartRealisasiData, response.chartCategories);
-                        },
-                        error: function(xhr) {
-                          alert('Terjadi kesalahan saat mengambil data: ' + xhr.responseText);
-                        },
+                        $.ajax({
+                          url: '{{ route("get.filteredData") }}',
+                          type: 'GET',
+                          data: {
+                            kode_kegiatan: kodeKegiatan,
+                            waktu_kegiatan: waktuKegiatan,
+                          },
+                          success: function(response) {
+                            // Update data in UI
+                            $('#target').text(response.target || '-');
+                            $('#realisasi').text(response.realisasi || '-');
+                            $('#tertinggi').text(response.tertinggi.persentase || '-');
+                            $('#tertinggi-nama').text(response.tertinggi.nama || '-');
+                            $('#terendah').text(response.terendah.persentase || '-');
+                            $('#terendah-nama').text(response.terendah.nama || '-');
+
+                            // Update chart with new data
+                            updateChart(response.chartTargetData, response.chartRealisasiData, response.chartCategories);
+                          },
+                          error: function(xhr) {
+                            alert('Terjadi kesalahan saat mengambil data: ' + xhr.responseText);
+                          },
+                        });
                       });
-                    });
-                  </script>
+                    </script>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
+          <!-- End Left side columns -->
+
+
         </div>
-        <!-- End Left side columns -->
-
-        <!-- Right side columns -->
-        <div class="col-lg-4">
-          <!-- Filter Form -->
-          <div class="card">
-            <div class="card-header">
-              <h5 class="mb-0"><i class="bi bi-funnel-fill"></i> Filter</h5>
-            </div>
-            <div class="card-body">
-              <form id="filter-form">
-                <!-- Dropdown Tim -->
-                <div class="mb-3">
-                  <label for="tim" class="form-label">Pilih Tim</label>
-                  <select class="form-select" id="tim" name="tim">
-                    <option value="">Pilih Tim</option>
-                    @foreach ($timNames as $id => $namaTim)
-                    <option value="{{ $id }}">{{ $namaTim }}</option>
-                    @endforeach
-                  </select>
-                </div>
-
-                <!-- Dropdown Objek -->
-                <div class="mb-3">
-                  <label for="objek" class="form-label">Pilih Objek</label>
-                  <select class="form-select" id="objek" name="objek">
-                    <option value="">Pilih Objek</option>
-                  </select>
-                </div>
-
-                <!-- Dropdown Periode -->
-                <div class="mb-3">
-                  <label for="periode" class="form-label">Pilih Periode</label>
-                  <select class="form-select" id="periode" name="periode">
-                    <option value="">Pilih Periode</option>
-                  </select>
-                </div>
-
-                <!-- Dropdown Nama Kegiatan -->
-                <div class="mb-3">
-                  <label for="nama_kegiatan" class="form-label">Pilih Nama Kegiatan</label>
-                  <select class="form-select" id="nama_kegiatan" name="nama_kegiatan">
-                    <option value="">Pilih Kegiatan</option>
-                    @foreach ($monitoringData as $data)
-                    <option value="{{ $data->kode_kegiatan }}">{{ $data->nama_kegiatan }}</option>
-                    @endforeach
-                  </select>
-                </div>
-
-                <!-- Dropdown Waktu Kegiatan -->
-                <div class="mb-3" id="waktu-kegiatan-container" style="display: none;">
-                  <label for="waktu_kegiatan" class="form-label">Pilih Waktu Kegiatan</label>
-                  <select class="form-select" id="waktu_kegiatan" name="waktu_kegiatan">
-                    <option value="">Pilih Waktu Kegiatan</option>
-                  </select>
-                </div>
-
-                <div class="d-grid">
-                  <button type="button" id="btn-tampilkan" class="btn btn-primary">Tampilkan</button>
-                </div>
-              </form>
-            </div>
-          </div>
-          <!-- End Filter -->
-        </div>
-        <!-- End Right side columns -->
-      </div>
+        <!-- End Grafik Realisasi Kegiatan -->
     </section>
   </main><!-- End #main -->
 
@@ -468,6 +595,10 @@
 
             // Update chart dengan data yang baru
             updateChart(response.chartTargetData, response.chartRealisasiData, response.chartCategories);
+            // **Tampilkan legend setelah chart berhasil di‐update**
+            $('#chartLegend')
+              .removeClass('d-none')
+              .addClass('d-flex');
           },
           error: function(xhr) {
             alert('Terjadi kesalahan saat mengambil data: ' + xhr.responseText);
@@ -486,51 +617,118 @@
 
       // Fungsi untuk memperbarui grafik dengan data baru
       function updateChart(targetData, realisasiData, categories) {
-        // Hancurkan grafik lama sebelum render yang baru
         destroyChart();
 
-        // Pastikan kontainer grafik sudah siap untuk menerima grafik baru
         const chartContainer = document.querySelector('#columnChart');
-        chartContainer.innerHTML = ''; // Clear any existing chart before rendering a new one
+        chartContainer.innerHTML = '';
 
-        // Render ulang chart dengan data baru
+        const maxTarget = Math.max(...targetData);
+        const maxRealisasi = Math.max(...realisasiData);
+        const maxValue = Math.max(maxTarget, maxRealisasi);
+        const xMax = Math.ceil(maxValue * 1.15);
+        const xMin = 0;
+
+        const realisasiColors = realisasiData.map((realisasi, index) => {
+          const target = targetData[index];
+          const percentage = target > 0 ? (realisasi / target) * 100 : 0;
+
+          if (percentage === 100) {
+            return '#388E3C';
+          } else if (percentage <= 50) {
+            return '#FF0000';
+          } else if (percentage <= 75) {
+            return '#FFEB3B';
+          } else if (percentage > 75) {
+            return '#4CAF50';
+          } else {
+            return '#2196F3';
+          }
+        });
+
         const chart = new ApexCharts(chartContainer, {
           series: [{
               name: "Target",
-              data: targetData, // Gunakan data target yang diterima dari server
+              data: targetData,
             },
             {
               name: "Realisasi",
-              data: realisasiData, // Gunakan data realisasi yang diterima dari server
-            },
+              data: realisasiData,
+            }
           ],
           chart: {
             type: "bar",
-            height: 350,
-          },
-          xaxis: {
-            categories: categories // Gunakan kategori yang diterima dari server
-          },
-          yaxis: {
-            title: {
-              text: "Sampel", // Y-axis label as "Sampel"
-            },
+            height: 800,
+            toolbar: {
+              show: false
+            }
           },
           plotOptions: {
             bar: {
-              horizontal: false,
-              columnWidth: "55%",
+              horizontal: true,
+              columnWidth: '70%',
+              dataLabels: {
+                position: 'right', // Label muncul di kanan batang
+              },
+              colors: {
+                ranges: realisasiData.map((_, index) => ({
+                  from: realisasiData[index],
+                  to: realisasiData[index],
+                  color: realisasiColors[index],
+                })),
+              },
             },
           },
+          dataLabels: {
+            enabled: true,
+            formatter: function(val) {
+              return '\u00A0\u00A0' + val;
+            },
+            offsetX: 100,
+            style: {
+              colors: ['#000'],
+              fontSize: '12px',
+              fontWeight: 'normal',
+            },
+            dropShadow: {
+              enabled: false
+            },
+            background: {
+              enabled: false
+            },
+            textAnchor: 'start',
+          },
+          colors: ['#2196F3', null],
+          xaxis: {
+            categories: categories,
+            min: 0,
+            max: Math.ceil(Math.max(...targetData, ...realisasiData) * 1.15),
+            title: {
+              text: "Sampel"
+            },
+            labels: {
+              formatter: val => val.toString()
+            },
+          },
+          yaxis: {
+            labels: {
+              show: true
+            },
+          },
+          legend: {
+            show: false,
+          },
         });
-
-        chart.render(); // Render ulang grafik dengan data yang baru
-        console.log('New chart rendered');
+        chart.render();
       }
 
     });
   </script>
 
+  <script>
+    window.routes = {
+      pendingVerifikasi: "{{ route('notifications.pending-verifikasi') }}"
+    };
+  </script>
 
   <!-- Vendor JS Files -->
   <script src="{{ asset('assets/vendor/apexcharts/apexcharts.min.js') }}"></script>
@@ -544,6 +742,8 @@
 
   <!-- Template Main JS File -->
   <script src="assets/js/main.js"></script>
+
+  <script src="{{ asset('assets/js/notification.js') }}"></script>
 </body>
 
 </html>

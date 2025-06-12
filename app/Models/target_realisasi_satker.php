@@ -20,8 +20,7 @@ class target_realisasi_satker extends Model
     // Relasi dengan update_target_realisasi
     public function updateRealisasi()
     {
-        return $this->hasOne(update_target_realisasi::class, 'id_target_realisasi', 'id')
-            ->withDefault(['realisasi_satker' => 0]);
+        return $this->hasMany(update_target_realisasi::class, 'id_target_realisasi', 'id');
     }
 
     public function satuankerja()

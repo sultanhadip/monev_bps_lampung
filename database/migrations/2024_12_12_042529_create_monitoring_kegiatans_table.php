@@ -13,14 +13,8 @@ return new class extends Migration
     {
         Schema::create('monitoring_kegiatans', function (Blueprint $table) {
             $table->id();
-            $table->unsignedBigInteger('id_data_kegiatan');
-            $table->foreign('id_data_kegiatan')->references('id')->on('data_kegiatans')->onDelete('cascade');
-            $table->integer('kode_tim');
             $table->integer('kode_kegiatan');
-            $table->integer('tahun_kegiatan');
-            $table->string('bulan')->nullable();
-            $table->string('triwulan')->nullable();
-            $table->string('semester')->nullable();
+            $table->integer('kode_tim');
             $table->date('waktu_mulai');
             $table->date('waktu_selesai');
             $table->timestamps();
